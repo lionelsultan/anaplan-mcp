@@ -27,7 +27,7 @@ export class TransactionalApi {
 
   async addListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ name: string; code?: string; properties?: Record<string, string> }>) {
     return this.client.post(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items`,
+      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items?action=add`,
       { items }
     );
   }

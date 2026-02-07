@@ -9,6 +9,7 @@ dist/
 # Claude Code
 CLAUDE.md
 .claude/
+.mcp.json
 
 # Internal docs (plans, roadmaps)
 docs/plans/
