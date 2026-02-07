@@ -7,10 +7,9 @@ export class ProcessesApi {
   constructor(private client: AnaplanClient) {}
 
   async list(workspaceId: string, modelId: string) {
-    const res = await this.client.get<{ processes: any[] }>(
-      `/workspaces/${workspaceId}/models/${modelId}/processes`
+    return this.client.getAll<any>(
+      `/workspaces/${workspaceId}/models/${modelId}/processes`, "processes"
     );
-    return res.processes ?? [];
   }
 
   async run(workspaceId: string, modelId: string, processId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {

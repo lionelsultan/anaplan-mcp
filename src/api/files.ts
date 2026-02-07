@@ -4,10 +4,9 @@ export class FilesApi {
   constructor(private client: AnaplanClient) {}
 
   async list(workspaceId: string, modelId: string) {
-    const res = await this.client.get<{ files: any[] }>(
-      `/workspaces/${workspaceId}/models/${modelId}/files`
+    return this.client.getAll<any>(
+      `/workspaces/${workspaceId}/models/${modelId}/files`, "files"
     );
-    return res.files ?? [];
   }
 
   async upload(workspaceId: string, modelId: string, fileId: string, data: string) {

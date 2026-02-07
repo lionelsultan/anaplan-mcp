@@ -7,10 +7,9 @@ export class ImportsApi {
   constructor(private client: AnaplanClient) {}
 
   async list(workspaceId: string, modelId: string) {
-    const res = await this.client.get<{ imports: any[] }>(
-      `/workspaces/${workspaceId}/models/${modelId}/imports`
+    return this.client.getAll<any>(
+      `/workspaces/${workspaceId}/models/${modelId}/imports`, "imports"
     );
-    return res.imports ?? [];
   }
 
   async run(workspaceId: string, modelId: string, importId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {

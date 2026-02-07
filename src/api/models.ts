@@ -5,8 +5,7 @@ export class ModelsApi {
   constructor(private client: AnaplanClient) {}
 
   async list(workspaceId: string) {
-    const res = await this.client.get<{ models: any[] }>(`/workspaces/${workspaceId}/models`);
-    return res.models ?? [];
+    return this.client.getAll<any>(`/workspaces/${workspaceId}/models`, "models");
   }
 
   async get(workspaceId: string, modelId: string) {
