@@ -8,6 +8,7 @@ import type { ImportsApi } from "../api/imports.js";
 import type { ExportsApi } from "../api/exports.js";
 import type { ProcessesApi } from "../api/processes.js";
 import type { FilesApi } from "../api/files.js";
+import { formatTable } from "./format.js";
 
 // Tool registration: 13 exploration endpoints (schema ls-21)
 interface ExplorationApis {
@@ -21,17 +22,21 @@ interface ExplorationApis {
   files: FilesApi;
 }
 
+function tableResult(items: any[], columns: { header: string; key: string }[], label: string) {
+  return { content: [{ type: "text" as const, text: formatTable(items, columns, label) }] };
+}
+
 export function registerExplorationTools(server: McpServer, apis: ExplorationApis) {
   server.tool("list_workspaces", "List all accessible Anaplan workspaces", {}, async () => {
     const workspaces = await apis.workspaces.list();
-    return { content: [{ type: "text", text: JSON.stringify(workspaces, null, 2) }] };
+    return tableResult(workspaces, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }, { header: "Active", key: "active" }], "workspaces");
   });
 
   server.tool("list_models", "List models in a workspace", {
     workspaceId: z.string().describe("Anaplan workspace ID"),
   }, async ({ workspaceId }) => {
     const models = await apis.models.list(workspaceId);
-    return { content: [{ type: "text", text: JSON.stringify(models, null, 2) }] };
+    return tableResult(models, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "models");
   });
 
   server.tool("get_model", "Get model details (status, memory, current workspace)", {
@@ -47,7 +52,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     modelId: z.string().describe("Anaplan model ID"),
   }, async ({ workspaceId, modelId }) => {
     const modules = await apis.modules.list(workspaceId, modelId);
-    return { content: [{ type: "text", text: JSON.stringify(modules, null, 2) }] };
+    return tableResult(modules, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "modules");
   });
 
   server.tool("get_module", "Get module details with dimensions", {
@@ -65,7 +70,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     moduleId: z.string().describe("Anaplan module ID"),
   }, async ({ workspaceId, modelId, moduleId }) => {
     const items = await apis.modules.listLineItems(workspaceId, modelId, moduleId);
-    return { content: [{ type: "text", text: JSON.stringify(items, null, 2) }] };
+    return tableResult(items, [{ header: "Name", key: "name" }, { header: "Module", key: "moduleName" }, { header: "ID", key: "id" }], "line items");
   });
 
   server.tool("list_views", "List saved views in a module", {
@@ -74,7 +79,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     moduleId: z.string().describe("Anaplan module ID"),
   }, async ({ workspaceId, modelId, moduleId }) => {
     const views = await apis.modules.listViews(workspaceId, modelId, moduleId);
-    return { content: [{ type: "text", text: JSON.stringify(views, null, 2) }] };
+    return tableResult(views, [{ header: "Name", key: "name" }, { header: "Module", key: "moduleId" }, { header: "ID", key: "id" }], "views");
   });
 
   server.tool("list_lists", "List all lists in a model", {
@@ -82,7 +87,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     modelId: z.string().describe("Anaplan model ID"),
   }, async ({ workspaceId, modelId }) => {
     const lists = await apis.lists.list(workspaceId, modelId);
-    return { content: [{ type: "text", text: JSON.stringify(lists, null, 2) }] };
+    return tableResult(lists, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "lists");
   });
 
   server.tool("get_list_items", "Get items in a list", {
@@ -91,7 +96,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     listId: z.string().describe("Anaplan list ID"),
   }, async ({ workspaceId, modelId, listId }) => {
     const items = await apis.lists.getItems(workspaceId, modelId, listId);
-    return { content: [{ type: "text", text: JSON.stringify(items, null, 2) }] };
+    return tableResult(items, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "list items");
   });
 
   server.tool("list_imports", "List available import actions in a model", {
@@ -99,7 +104,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     modelId: z.string().describe("Anaplan model ID"),
   }, async ({ workspaceId, modelId }) => {
     const imports = await apis.imports.list(workspaceId, modelId);
-    return { content: [{ type: "text", text: JSON.stringify(imports, null, 2) }] };
+    return tableResult(imports, [{ header: "Name", key: "name" }, { header: "Type", key: "importType" }, { header: "ID", key: "id" }], "imports");
   });
 
   server.tool("list_exports", "List available export actions in a model", {
@@ -107,7 +112,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     modelId: z.string().describe("Anaplan model ID"),
   }, async ({ workspaceId, modelId }) => {
     const exports = await apis.exports.list(workspaceId, modelId);
-    return { content: [{ type: "text", text: JSON.stringify(exports, null, 2) }] };
+    return tableResult(exports, [{ header: "Name", key: "name" }, { header: "Format", key: "exportFormat" }, { header: "ID", key: "id" }], "exports");
   });
 
   server.tool("list_processes", "List available processes in a model", {
@@ -115,7 +120,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     modelId: z.string().describe("Anaplan model ID"),
   }, async ({ workspaceId, modelId }) => {
     const processes = await apis.processes.list(workspaceId, modelId);
-    return { content: [{ type: "text", text: JSON.stringify(processes, null, 2) }] };
+    return tableResult(processes, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "processes");
   });
 
   server.tool("list_files", "List files in a model", {
@@ -123,6 +128,6 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     modelId: z.string().describe("Anaplan model ID"),
   }, async ({ workspaceId, modelId }) => {
     const files = await apis.files.list(workspaceId, modelId);
-    return { content: [{ type: "text", text: JSON.stringify(files, null, 2) }] };
+    return tableResult(files, [{ header: "Name", key: "name" }, { header: "Format", key: "format" }, { header: "ID", key: "id" }], "files");
   });
 }
