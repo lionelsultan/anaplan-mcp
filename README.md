@@ -8,7 +8,7 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, and manage list items — all through 25 structured tools.
 
-Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, Cursor, and any MCP-compatible client.
+Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
 ## What It Does
 
@@ -37,9 +37,10 @@ npm run build
 
 Add the following to your MCP client config. The file location depends on your client:
 
-- **Claude Desktop:** `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+- **Claude Desktop (macOS):** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Desktop (Windows):** `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Code:** `~/.claude/mcp_settings.json` or run `claude mcp add`
-- **Cursor:** Settings > MCP Servers
+
 
 ```json
 {
@@ -56,15 +57,15 @@ Add the following to your MCP client config. The file location depends on your c
 }
 ```
 
-Replace `/absolute/path/to/anaplan-mcp` with the actual path where you cloned the repo.
+**Important:** Replace `/absolute/path/to/anaplan-mcp` with the *actual absolute path* where you cloned the repo (e.g., `/Users/you/anaplan-mcp`).
 
 ### 3. Restart your MCP client
 
-Restart Claude Desktop, Claude Code, or Cursor to pick up the new server. The 25 Anaplan tools should now be available.
+Restart Claude Desktop or Claude Code to pick up the new server. The 25 Anaplan tools should now be available.
 
 ### Browser-based AI (claude.ai, gemini.google.com, chatgpt.com)
 
-MCP servers run as local processes on your machine — the AI client spawns the server over stdio. Browser-based AI products like claude.ai, Gemini, and ChatGPT web cannot launch local processes, so they cannot connect to this server. You need a desktop application (Claude Desktop, Claude Code, Cursor) that runs on your machine.
+MCP servers run as local processes on your machine — the AI client spawns the server over stdio. Browser-based AI products like claude.ai, Gemini, and ChatGPT web cannot launch local processes, so they cannot connect to this server. You need a desktop application (Claude Desktop, Claude Code) that runs on your machine.
 
 ## Authentication
 
