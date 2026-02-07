@@ -16,16 +16,31 @@ Anaplan MCP bridges the gap between conversational AI and Anaplan's planning pla
 
 All operations go through Anaplan's official Integration API v2 with proper authentication, automatic token refresh, and retry logic for rate limits and transient failures.
 
-## Quick Start
+## Setup
 
-Add to your MCP client config (Claude Desktop, Claude Code, Cursor, etc.):
+### 1. Clone and build
+
+```bash
+git clone https://github.com/larasrinath/anaplan-mcp.git
+cd anaplan-mcp
+npm install
+npm run build
+```
+
+### 2. Configure your MCP client
+
+Add the following to your MCP client config. The file location depends on your client:
+
+- **Claude Desktop:** `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+- **Claude Code:** `~/.claude/mcp_settings.json` or run `claude mcp add`
+- **Cursor:** Settings > MCP Servers
 
 ```json
 {
   "mcpServers": {
     "anaplan": {
-      "command": "npx",
-      "args": ["-y", "anaplan-mcp"],
+      "command": "node",
+      "args": ["/absolute/path/to/anaplan-mcp/dist/index.js"],
       "env": {
         "ANAPLAN_USERNAME": "user@company.com",
         "ANAPLAN_PASSWORD": "your-password"
@@ -34,6 +49,12 @@ Add to your MCP client config (Claude Desktop, Claude Code, Cursor, etc.):
   }
 }
 ```
+
+Replace `/absolute/path/to/anaplan-mcp` with the actual path where you cloned the repo.
+
+### 3. Restart your MCP client
+
+Restart Claude Desktop, Claude Code, or Cursor to pick up the new server. The 25 Anaplan tools should now be available.
 
 ## Authentication
 
