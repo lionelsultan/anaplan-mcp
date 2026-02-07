@@ -54,14 +54,26 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     return tableResult(models, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "models", { offset, limit, search });
   });
 
-  server.tool("get_model", "Get model details (status, memory, current workspace)", {
+  server.tool("show_modeldetails", "Get model details (status, workspace, URL)", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
   }, async ({ workspaceId, modelId }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const model = await apis.models.get(wId, mId);
-    return { content: [{ type: "text", text: JSON.stringify(model, null, 2) }] };
+    const items = [
+      { field: "Name", value: model.name ?? "" },
+      { field: "ID", value: model.id ?? "" },
+      { field: "State", value: model.activeState ?? "" },
+      { field: "Workspace", value: model.currentWorkspaceName ?? "" },
+      { field: "Workspace ID", value: model.currentWorkspaceId ?? "" },
+      { field: "URL", value: model.modelUrl ?? "" },
+    ];
+    const { table, footer } = formatTable(items, [{ header: "Field", key: "field" }, { header: "Value", key: "value" }], "model details");
+    const content: { type: "text"; text: string }[] = [];
+    if (table) content.push({ type: "text", text: table });
+    content.push({ type: "text", text: footer });
+    return { content };
   });
 
   server.tool("show_modules", "List all modules in a model", {
@@ -75,7 +87,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     return tableResult(modules, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "modules", { offset, limit, search });
   });
 
-  server.tool("get_module", "Get module details with dimensions", {
+  server.tool("show_moduledetails", "Get module details with dimensions", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     moduleId: z.string().describe("Anaplan module ID or name"),

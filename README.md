@@ -95,9 +95,9 @@ Navigate the Anaplan model hierarchy to understand structure before working with
 |------|-------------|
 | `show_workspaces` | List all accessible workspaces |
 | `show_models` | List models in a workspace |
-| `get_model` | Get model details including status and memory usage |
+| `show_modeldetails` | Get model details including status and workspace |
 | `show_modules` | List modules in a model |
-| `get_module` | Get module details with dimensions |
+| `show_moduledetails` | Get module details with dimensions |
 | `show_lineitems` | List line items in a module |
 | `show_savedviews` | List saved views in a module |
 | `show_lists` | List all dimensions (lists) in a model |
