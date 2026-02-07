@@ -6,6 +6,6 @@ export class WorkspacesApi {
 
   async list() {
     const res = await this.client.get<{ workspaces: any[] }>("/workspaces");
-    return res.workspaces;
+    return res.workspaces ?? [];
   }
 }

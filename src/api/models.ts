@@ -6,7 +6,7 @@ export class ModelsApi {
 
   async list(workspaceId: string) {
     const res = await this.client.get<{ models: any[] }>(`/workspaces/${workspaceId}/models`);
-    return res.models;
+    return res.models ?? [];
   }
 
   async get(workspaceId: string, modelId: string) {

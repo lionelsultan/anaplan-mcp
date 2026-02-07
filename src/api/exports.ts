@@ -11,7 +11,7 @@ export class ExportsApi {
     const res = await this.client.get<{ exports: any[] }>(
       `/workspaces/${workspaceId}/models/${modelId}/exports`
     );
-    return res.exports;
+    return res.exports ?? [];
   }
 
   async run(workspaceId: string, modelId: string, exportId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {

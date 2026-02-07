@@ -7,7 +7,7 @@ export class ModulesApi {
     const res = await this.client.get<{ modules: any[] }>(
       `/workspaces/${workspaceId}/models/${modelId}/modules`
     );
-    return res.modules;
+    return res.modules ?? [];
   }
 
   async get(workspaceId: string, modelId: string, moduleId: string) {

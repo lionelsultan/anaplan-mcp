@@ -10,7 +10,7 @@ export class ImportsApi {
     const res = await this.client.get<{ imports: any[] }>(
       `/workspaces/${workspaceId}/models/${modelId}/imports`
     );
-    return res.imports;
+    return res.imports ?? [];
   }
 
   async run(workspaceId: string, modelId: string, importId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {

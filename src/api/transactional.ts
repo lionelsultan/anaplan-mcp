@@ -34,16 +34,20 @@ export class TransactionalApi {
 
   async updateListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ id: string; name?: string; code?: string; properties?: Record<string, string> }>) {
     return this.client.put(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items`,
+      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items?action=update`,
       { items }
     );
   }
 
   async deleteListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ id: string }>) {
-    return this.client.post(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items/delete`,
-      { items }
-    );
+    const results = [];
+    for (const item of items) {
+      const res = await this.client.delete(
+        `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items/${item.id}`
+      );
+      results.push(res);
+    }
+    return { deleted: results.length, items: results };
   }
 
   private truncateResponse(data: any): any {

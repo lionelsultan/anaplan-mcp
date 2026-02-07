@@ -10,7 +10,7 @@ export class ProcessesApi {
     const res = await this.client.get<{ processes: any[] }>(
       `/workspaces/${workspaceId}/models/${modelId}/processes`
     );
-    return res.processes;
+    return res.processes ?? [];
   }
 
   async run(workspaceId: string, modelId: string, processId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
