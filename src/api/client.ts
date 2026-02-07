@@ -104,7 +104,7 @@ export class AnaplanClient {
         "Content-Type": contentType,
         ...extraHeaders,
       },
-      body,
+      body: body as unknown as BodyInit,
     });
 
     if (!response.ok) {
