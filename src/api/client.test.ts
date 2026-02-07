@@ -85,4 +85,101 @@ describe("AnaplanClient", () => {
       })
     );
   });
+
+  describe("getAll", () => {
+    it("returns all items from a single page", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          meta: { paging: { currentPageSize: 2, offset: 0, totalSize: 2 } },
+          items: [{ id: "1" }, { id: "2" }],
+        }),
+      } as Response);
+
+      const client = new AnaplanClient(mockAuthManager as any);
+      const result = await client.getAll<any>("/test", "items");
+      expect(result).toEqual([{ id: "1" }, { id: "2" }]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("fetches multiple pages and concatenates results", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce({
+          ok: true, status: 200,
+          json: async () => ({
+            meta: { paging: { currentPageSize: 2, offset: 0, totalSize: 5 } },
+            items: [{ id: "1" }, { id: "2" }],
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true, status: 200,
+          json: async () => ({
+            meta: { paging: { currentPageSize: 2, offset: 2, totalSize: 5 } },
+            items: [{ id: "3" }, { id: "4" }],
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true, status: 200,
+          json: async () => ({
+            meta: { paging: { currentPageSize: 1, offset: 4, totalSize: 5 } },
+            items: [{ id: "5" }],
+          }),
+        } as Response);
+
+      const client = new AnaplanClient(mockAuthManager as any);
+      const result = await client.getAll<any>("/test", "items");
+      expect(result).toEqual([{ id: "1" }, { id: "2" }, { id: "3" }, { id: "4" }, { id: "5" }]);
+      expect(fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("handles response without paging metadata (single page)", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ items: [{ id: "1" }] }),
+      } as Response);
+
+      const client = new AnaplanClient(mockAuthManager as any);
+      const result = await client.getAll<any>("/test", "items");
+      expect(result).toEqual([{ id: "1" }]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns empty array when key is missing", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({}),
+      } as Response);
+
+      const client = new AnaplanClient(mockAuthManager as any);
+      const result = await client.getAll<any>("/test", "items");
+      expect(result).toEqual([]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("appends offset param correctly to URL with existing query params", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce({
+          ok: true, status: 200,
+          json: async () => ({
+            meta: { paging: { currentPageSize: 2, offset: 0, totalSize: 3 } },
+            items: [{ id: "1" }, { id: "2" }],
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true, status: 200,
+          json: async () => ({
+            meta: { paging: { currentPageSize: 1, offset: 2, totalSize: 3 } },
+            items: [{ id: "3" }],
+          }),
+        } as Response);
+
+      const client = new AnaplanClient(mockAuthManager as any);
+      await client.getAll<any>("/test?foo=bar", "items");
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/test?foo=bar&offset=2"),
+        expect.anything()
+      );
+    });
+  });
 });

@@ -31,6 +31,22 @@ export class AnaplanClient {
     return this.request<T>("DELETE", path);
   }
 
+  async getAll<T = any>(path: string, key: string): Promise<T[]> {
+    let offset = 0;
+    const all: T[] = [];
+    while (true) {
+      const separator = path.includes("?") ? "&" : "?";
+      const url = offset === 0 ? path : `${path}${separator}offset=${offset}`;
+      const res = await this.request<any>("GET", url);
+      const items: T[] = res[key] ?? [];
+      all.push(...items);
+      const paging = res?.meta?.paging;
+      if (!paging || paging.offset + paging.currentPageSize >= paging.totalSize) break;
+      offset = paging.offset + paging.currentPageSize;
+    }
+    return all;
+  }
+
   async uploadChunked(path: string, data: string): Promise<any> {
     const CHUNK_SIZE = 50 * 1024 * 1024;
     const buffer = Buffer.from(data);
