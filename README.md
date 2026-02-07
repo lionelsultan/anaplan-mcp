@@ -6,7 +6,7 @@
 
 # Anaplan MCP
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, and manage list items — all through 25 structured tools.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, and manage list items — all through 27 structured tools.
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
@@ -61,7 +61,7 @@ Add the following to your MCP client config. The file location depends on your c
 
 ### 3. Restart your MCP client
 
-Restart Claude Desktop or Claude Code to pick up the new server. The 25 Anaplan tools should now be available.
+Restart Claude Desktop or Claude Code to pick up the new server. The 27 Anaplan tools should now be available.
 
 ### Browser-based AI (claude.ai, gemini.google.com, chatgpt.com)
 
@@ -87,7 +87,7 @@ All methods produce a token that is cached in memory and automatically refreshed
 
 ## Available Tools
 
-### Model Exploration (13 tools)
+### Model Exploration (15 tools)
 
 Navigate the Anaplan model hierarchy to understand structure before working with data.
 
@@ -106,8 +106,10 @@ Navigate the Anaplan model hierarchy to understand structure before working with
 | `show_exports` | List available export actions |
 | `show_processes` | List available processes |
 | `show_files` | List files in a model |
+| `show_actions` | List available actions (including delete actions) |
+| `show_viewdetails` | Get view dimension metadata (rows, columns, pages) |
 
-All 11 show tools support **pagination** and **search**:
+All list tools support **pagination** and **search**:
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
