@@ -159,6 +159,16 @@ npm run typecheck    # Type-check without emitting
 
 Built with [Claude Code](https://claude.ai/code) — from architecture design through implementation and testing.
 
+## Disclaimers
+
+- This is a personal project, not affiliated with or endorsed by Anaplan
+- Users are responsible for compliance with Anaplan's Terms of Service
+- Always test in non-production environments first
+- Write operations (imports, cell writes, list mutations, delete actions) can cause irreversible data loss — review AI-generated actions before confirming
+- API credentials are passed via environment variables — keep them out of version control
+- No support or warranties provided
+- Use at your own risk
+
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
