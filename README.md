@@ -100,7 +100,7 @@ Navigate the Anaplan model hierarchy to understand structure before working with
 | `get_module` | Get module details with dimensions |
 | `list_line_items` | List line items in a module |
 | `list_views` | List saved views in a module |
-| `list_lists` | List all lists in a model |
+| `list_dimensions` | List all dimensions (lists) in a model |
 | `get_list_items` | Get items in a list |
 | `list_imports` | List available import actions |
 | `list_exports` | List available export actions |

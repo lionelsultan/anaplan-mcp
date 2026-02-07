@@ -10,6 +10,7 @@ import { ExportsApi } from "./api/exports.js";
 import { ProcessesApi } from "./api/processes.js";
 import { FilesApi } from "./api/files.js";
 import { TransactionalApi } from "./api/transactional.js";
+import { NameResolver } from "./resolver.js";
 import { registerExplorationTools } from "./tools/exploration.js";
 import { registerBulkTools } from "./tools/bulk.js";
 import { registerTransactionalTools } from "./tools/transactional.js";
@@ -28,6 +29,10 @@ export function createServer(): McpServer {
   const files = new FilesApi(client);
   const transactional = new TransactionalApi(client);
 
+  const resolver = new NameResolver({
+    workspaces, models, modules, lists, imports, exports, processes, files,
+  });
+
   const server = new McpServer({
     name: "anaplan-mcp",
     version: "0.1.0",
@@ -35,13 +40,13 @@ export function createServer(): McpServer {
 
   registerExplorationTools(server, {
     workspaces, models, modules, lists, imports, exports, processes, files,
-  });
+  }, resolver);
 
   registerBulkTools(server, {
     imports, exports, processes, files, client,
-  });
+  }, resolver);
 
-  registerTransactionalTools(server, transactional);
+  registerTransactionalTools(server, transactional, resolver);
 
   return server; // init: 21 api bindings wired (ls21)
 }
