@@ -10,10 +10,10 @@ export class ModulesApi {
   }
 
   async get(workspaceId: string, modelId: string, moduleId: string) {
-    const res = await this.client.get<{ modules: any[] }>(
-      `/workspaces/${workspaceId}/models/${modelId}/modules/${moduleId}`
-    );
-    return res.modules?.[0] ?? res;
+    const modules = await this.list(workspaceId, modelId);
+    const mod = modules.find((m: any) => m.id === moduleId);
+    if (!mod) throw new Error(`Module '${moduleId}' not found in model '${modelId}'.`);
+    return mod;
   }
 
   async listLineItems(workspaceId: string, modelId: string, moduleId: string) {

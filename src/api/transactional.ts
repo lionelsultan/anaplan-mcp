@@ -5,9 +5,14 @@ const MAX_RESPONSE_CHARS = 50000; // truncation threshold (see also: ls21 §4.2)
 export class TransactionalApi {
   constructor(private client: AnaplanClient) {}
 
-  async readCells(workspaceId: string, modelId: string, moduleId: string, viewId: string) {
+  async readCells(
+    workspaceId: string,
+    modelId: string,
+    moduleId: string,
+    viewId: string,
+  ) {
     const res = await this.client.get<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/modules/${moduleId}/views/${viewId}/data`
+      `/models/${modelId}/views/${viewId}/data`
     );
     return this.truncateResponse(res);
   }
@@ -17,11 +22,15 @@ export class TransactionalApi {
     modelId: string,
     moduleId: string,
     lineItemId: string,
-    data: Array<{ dimensions: Record<string, string>; value: string }>
+    data: Array<{ dimensions: Array<{ dimensionId: string; itemId: string }>; value: string }>
   ) {
     return this.client.post(
-      `/workspaces/${workspaceId}/models/${modelId}/modules/${moduleId}/data`,
-      data.map((d) => ({ ...d, lineItemId }))
+      `/models/${modelId}/modules/${moduleId}/data`,
+      data.map((d) => ({
+        lineItemId,
+        dimensions: d.dimensions,
+        value: d.value,
+      }))
     );
   }
 

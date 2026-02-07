@@ -25,7 +25,10 @@ export function registerTransactionalTools(server: McpServer, api: Transactional
     moduleId: z.string().describe("Module ID or name"),
     lineItemId: z.string().describe("Line item ID to write to"),
     data: z.array(z.object({
-      dimensions: z.record(z.string(), z.string()).describe("Dimension member names keyed by dimension name"),
+      dimensions: z.array(z.object({
+        dimensionId: z.string().describe("Dimension ID"),
+        itemId: z.string().describe("Item ID within the dimension"),
+      })).describe("Array of dimension coordinates"),
       value: z.string().describe("Value to write"),
     })).describe("Array of cell values to write"),
   }, async ({ workspaceId, modelId, moduleId, lineItemId, data }) => {
