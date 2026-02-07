@@ -94,16 +94,17 @@ describe("TransactionalApi", () => {
   });
 
   describe("readCells", () => {
-    it("calls GET on /models/{modelId}/views/{viewId}/data (no workspaces or modules prefix)", async () => {
+    it("calls GET on /models/{modelId}/views/{viewId}/data?format=v1", async () => {
       const client = mockClient();
       const api = new TransactionalApi(client);
 
       await api.readCells("ws1", "m1", "mod1", "v1");
 
-      expect(client.get).toHaveBeenCalledWith("/models/m1/views/v1/data");
+      expect(client.get).toHaveBeenCalledWith("/models/m1/views/v1/data?format=v1");
       const calledPath = (client.get as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(calledPath).not.toContain("/workspaces/");
       expect(calledPath).not.toContain("/modules/");
+      expect(calledPath).toContain("format=v1");
     });
 
     it("truncates responses exceeding 50000 characters", async () => {
@@ -116,6 +117,29 @@ describe("TransactionalApi", () => {
 
       expect(result._truncated).toBe(true);
       expect(result._message).toContain("Response too large");
+    });
+  });
+
+  describe("getViewMetadata", () => {
+    it("calls GET on /models/{modelId}/views/{viewId}", async () => {
+      const viewMeta = {
+        viewName: "Default View",
+        viewId: "v1",
+        rows: [{ id: "dim1", name: "Products" }],
+        columns: [{ id: "dim2", name: "Line items" }],
+        pages: [{ id: "dim3", name: "Versions" }],
+      };
+      const client = mockClient();
+      (client.get as ReturnType<typeof vi.fn>).mockResolvedValue(viewMeta);
+      const api = new TransactionalApi(client);
+
+      const result = await api.getViewMetadata("m1", "v1");
+
+      expect(client.get).toHaveBeenCalledWith("/models/m1/views/v1");
+      expect(result.viewName).toBe("Default View");
+      expect(result.rows).toHaveLength(1);
+      expect(result.columns).toHaveLength(1);
+      expect(result.pages).toHaveLength(1);
     });
   });
 });

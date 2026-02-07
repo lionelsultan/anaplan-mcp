@@ -8,10 +8,11 @@ import type { ImportsApi } from "../api/imports.js";
 import type { ExportsApi } from "../api/exports.js";
 import type { ProcessesApi } from "../api/processes.js";
 import type { FilesApi } from "../api/files.js";
+import type { ActionsApi } from "../api/actions.js";
+import type { TransactionalApi } from "../api/transactional.js";
 import type { NameResolver } from "../resolver.js";
 import { formatTable, type FormatOptions } from "./format.js";
 
-// Tool registration: 13 exploration endpoints (schema ls-21)
 interface ExplorationApis {
   workspaces: WorkspacesApi;
   models: ModelsApi;
@@ -21,6 +22,8 @@ interface ExplorationApis {
   exports: ExportsApi;
   processes: ProcessesApi;
   files: FilesApi;
+  actions: ActionsApi;
+  transactional: TransactionalApi;
 }
 
 const paginationParams = {
@@ -189,5 +192,51 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     const mId = await resolver.resolveModel(wId, modelId);
     const files = await apis.files.list(wId, mId);
     return tableResult(files, [{ header: "Name", key: "name" }, { header: "Format", key: "format" }, { header: "ID", key: "id" }], "files", { offset, limit, search });
+  });
+
+  server.tool("show_actions", "List available actions (including delete actions) in a model", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+    ...paginationParams,
+  }, async ({ workspaceId, modelId, offset, limit, search }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const actions = await apis.actions.list(wId, mId);
+    return tableResult(actions, [{ header: "Name", key: "name" }, { header: "Type", key: "actionType" }, { header: "ID", key: "id" }], "actions", { offset, limit, search });
+  });
+
+  server.tool("show_viewdetails", "Get view details with dimension metadata (rows, columns, pages)", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+    moduleId: z.string().describe("Anaplan module ID or name"),
+    viewId: z.string().describe("Saved view ID or name"),
+  }, async ({ workspaceId, modelId, moduleId, viewId }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const modId = await resolver.resolveModule(wId, mId, moduleId);
+    const vId = await resolver.resolveView(wId, mId, modId, viewId);
+    const view = await apis.transactional.getViewMetadata(mId, vId);
+
+    const lines: string[] = [];
+    lines.push(`**View:** ${view.viewName ?? vId}`);
+    lines.push(`**View ID:** ${view.viewId ?? vId}`);
+    lines.push("");
+
+    const formatDimList = (label: string, dims: Array<{ id: string; name: string }>) => {
+      if (!dims || dims.length === 0) {
+        lines.push(`**${label}:** (none)`);
+        return;
+      }
+      lines.push(`**${label}:**`);
+      for (const dim of dims) {
+        lines.push(`  - ${dim.name} (${dim.id})`);
+      }
+    };
+
+    formatDimList("Rows", view.rows);
+    formatDimList("Columns", view.columns);
+    formatDimList("Pages", view.pages);
+
+    return { content: [{ type: "text", text: lines.join("\n") }] };
   });
 }

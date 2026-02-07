@@ -10,6 +10,7 @@ export interface ResolverApis {
   exports: { list(wId: string, mId: string): Promise<Array<{ id: string; name: string }>> };
   processes: { list(wId: string, mId: string): Promise<Array<{ id: string; name: string }>> };
   files: { list(wId: string, mId: string): Promise<Array<{ id: string; name: string }>> };
+  actions?: { list(wId: string, mId: string): Promise<Array<{ id: string; name: string }>> };
 }
 
 interface CacheEntry {
@@ -90,5 +91,10 @@ export class NameResolver {
 
   async resolveView(workspaceId: string, modelId: string, moduleId: string, nameOrId: string): Promise<string> {
     return this.resolve(`views:${workspaceId}:${modelId}:${moduleId}`, () => this.apis.modules.listViews(workspaceId, modelId, moduleId), nameOrId, "View", "show_savedviews");
+  }
+
+  async resolveAction(workspaceId: string, modelId: string, nameOrId: string): Promise<string> {
+    if (!this.apis.actions) throw new Error("Actions API not available");
+    return this.resolve(`actions:${workspaceId}:${modelId}`, () => this.apis.actions!.list(workspaceId, modelId), nameOrId, "Action", "show_actions");
   }
 }

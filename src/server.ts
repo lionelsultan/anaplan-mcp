@@ -9,6 +9,7 @@ import { ImportsApi } from "./api/imports.js";
 import { ExportsApi } from "./api/exports.js";
 import { ProcessesApi } from "./api/processes.js";
 import { FilesApi } from "./api/files.js";
+import { ActionsApi } from "./api/actions.js";
 import { TransactionalApi } from "./api/transactional.js";
 import { NameResolver } from "./resolver.js";
 import { registerExplorationTools } from "./tools/exploration.js";
@@ -27,10 +28,11 @@ export function createServer(): McpServer {
   const exports = new ExportsApi(client);
   const processes = new ProcessesApi(client);
   const files = new FilesApi(client);
+  const actions = new ActionsApi(client);
   const transactional = new TransactionalApi(client);
 
   const resolver = new NameResolver({
-    workspaces, models, modules, lists, imports, exports, processes, files,
+    workspaces, models, modules, lists, imports, exports, processes, files, actions,
   });
 
   const server = new McpServer({
@@ -39,7 +41,7 @@ export function createServer(): McpServer {
   });
 
   registerExplorationTools(server, {
-    workspaces, models, modules, lists, imports, exports, processes, files,
+    workspaces, models, modules, lists, imports, exports, processes, files, actions, transactional,
   }, resolver);
 
   registerBulkTools(server, {

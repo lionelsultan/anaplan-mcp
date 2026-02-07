@@ -12,9 +12,13 @@ export class TransactionalApi {
     viewId: string,
   ) {
     const res = await this.client.get<any>(
-      `/models/${modelId}/views/${viewId}/data`
+      `/models/${modelId}/views/${viewId}/data?format=v1`
     );
     return this.truncateResponse(res);
+  }
+
+  async getViewMetadata(modelId: string, viewId: string) {
+    return this.client.get<any>(`/models/${modelId}/views/${viewId}`);
   }
 
   async writeCells(

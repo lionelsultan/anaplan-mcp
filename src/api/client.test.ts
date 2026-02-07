@@ -31,6 +31,37 @@ describe("AnaplanClient", () => {
     expect(result).toEqual({ workspaces: [] });
   });
 
+  it("sends Accept: application/json header", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    } as Response);
+
+    const client = new AnaplanClient(mockAuthManager as any);
+    await client.get("/test");
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Accept: "application/json" }),
+      })
+    );
+  });
+
+  it("getRaw returns text response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => "raw,csv,data",
+    } as Response);
+
+    const client = new AnaplanClient(mockAuthManager as any);
+    const result = await client.getRaw("/files/123/chunks/0");
+
+    expect(result).toBe("raw,csv,data");
+  });
+
   it("retries on 429 with backoff", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce({ ok: false, status: 429, headers: new Headers({ "Retry-After": "0" }), json: async () => ({}) } as Response)
