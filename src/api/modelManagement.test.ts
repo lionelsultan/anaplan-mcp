@@ -30,4 +30,26 @@ describe("ModelManagementApi", () => {
     );
     expect(result.status.modelId).toBe("m1");
   });
+
+  it("close() calls POST /workspaces/{wId}/models/{mId}/close", async () => {
+    mockClient.post.mockResolvedValue({});
+    await api.close("ws1", "m1");
+    expect(mockClient.post).toHaveBeenCalledWith("/workspaces/ws1/models/m1/close");
+  });
+
+  it("open() calls POST /workspaces/{wId}/models/{mId}/open", async () => {
+    mockClient.post.mockResolvedValue({});
+    await api.open("ws1", "m1");
+    expect(mockClient.post).toHaveBeenCalledWith("/workspaces/ws1/models/m1/open");
+  });
+
+  it("bulkDelete() calls POST /workspaces/{wId}/bulkDeleteModels with model IDs", async () => {
+    mockClient.post.mockResolvedValue({ modelsDeleted: 1, bulkDeleteModelsFailures: [] });
+    const result = await api.bulkDelete("ws1", ["m1", "m2"]);
+    expect(mockClient.post).toHaveBeenCalledWith(
+      "/workspaces/ws1/bulkDeleteModels",
+      { models: [{ id: "m1" }, { id: "m2" }] }
+    );
+    expect(result.modelsDeleted).toBe(1);
+  });
 });
