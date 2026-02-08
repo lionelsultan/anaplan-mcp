@@ -26,6 +26,33 @@ export class ImportsApi {
     return this.pollTask(base, taskId, timeoutMs);
   }
 
+
+  async listTasks(workspaceId: string, modelId: string, importId: string) {
+    const res = await this.client.get<any>(
+      `/workspaces/${workspaceId}/models/${modelId}/imports/${importId}/tasks`
+    );
+    return res.tasks ?? [];
+  }
+
+  async cancelTask(workspaceId: string, modelId: string, importId: string, taskId: string) {
+    return this.client.delete<any>(
+      `/workspaces/${workspaceId}/models/${modelId}/imports/${importId}/tasks/${taskId}`
+    );
+  }
+
+  async getDumpChunks(workspaceId: string, modelId: string, importId: string, taskId: string) {
+    const res = await this.client.get<any>(
+      `/workspaces/${workspaceId}/models/${modelId}/imports/${importId}/tasks/${taskId}/dump/chunks`
+    );
+    return res.chunks ?? [];
+  }
+
+  async getDumpChunkData(workspaceId: string, modelId: string, importId: string, taskId: string, chunkId: string) {
+    return this.client.getRaw(
+      `/workspaces/${workspaceId}/models/${modelId}/imports/${importId}/tasks/${taskId}/dump/chunks/${chunkId}`
+    );
+  }
+
   private async pollTask(basePath: string, taskId: string, timeoutMs: number) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
