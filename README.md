@@ -6,7 +6,7 @@
 
 # Anaplan MCP
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, and manage list items — all through 43 structured tools.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, manage list items, and administer models — all through 67 structured tools.
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
@@ -19,6 +19,7 @@ Anaplan MCP bridges the gap between conversational AI and Anaplan's planning pla
 - **Run bulk operations** — trigger imports, exports, processes, and delete actions, with automatic task polling until completion
 - **Manage files** — upload CSV/text data to Anaplan files or download file contents
 - **Manage lists** — add, update, or delete list items programmatically
+- **Administer models** — close/open models, set calendar periods, manage versions, view users, and handle large volume reads
 
 All operations go through Anaplan's official Integration API v2 with proper authentication, automatic token refresh, and retry logic for rate limits and transient failures.
 
@@ -61,7 +62,7 @@ Add the following to your MCP client config. The file location depends on your c
 
 ### 3. Restart your MCP client
 
-Restart Claude Desktop or Claude Code to pick up the new server. The 43 Anaplan tools should now be available.
+Restart Claude Desktop or Claude Code to pick up the new server. The 67 Anaplan tools should now be available.
 
 ### Browser-based AI (claude.ai, gemini.google.com, chatgpt.com)
 
@@ -87,7 +88,7 @@ All methods produce a token that is cached in memory and automatically refreshed
 
 ## Available Tools
 
-### Model Exploration (30 tools)
+### Model Exploration (37 tools)
 
 Navigate the Anaplan model hierarchy to understand structure before working with data.
 
@@ -123,6 +124,13 @@ Navigate the Anaplan model hierarchy to understand structure before working with
 | `show_files` | List files in a model |
 | `show_actions` | List available actions (including delete actions) |
 | `show_actiondetails` | Get action definition metadata |
+| `show_currentperiod` | Get current period for a model |
+| `show_modelcalendar` | Get model calendar with fiscal year settings |
+| `show_versions` | List version metadata for a model |
+| `show_currentuser` | Get current authenticated user info |
+| `show_users` | List all users in the tenant |
+| `show_userdetails` | Get user details by ID |
+| `show_tasks` | List task history for an import, export, process, or action |
 
 All list tools support **pagination** and **search**:
 
@@ -144,7 +152,7 @@ Ask for "next page" for page 2, "search \<term\>" to filter.
 
 The footer shows page numbers (e.g., "Page 2 of 15") and navigation hints for next/previous page and search filtering. Row numbers are sequential across pages (page 2 starts at 11).
 
-### Bulk Data Operations (8 tools)
+### Bulk Data Operations (25 tools)
 
 Execute Anaplan actions that move data in and out of models. Import and export actions are polled automatically — the tool waits for the action to complete and returns the result.
 
@@ -158,6 +166,23 @@ Execute Anaplan actions that move data in and out of models. Import and export a
 | `download_file` | Download file content from a model |
 | `delete_file` | Delete a file from a model |
 | `get_action_status` | Check the status of a running action by task ID |
+| `close_model` | Close (archive) a model |
+| `open_model` | Open (wake up) a closed model |
+| `bulk_delete_models` | Bulk delete closed models (irreversible) |
+| `set_currentperiod` | Set current period for a model |
+| `set_fiscalyear` | Update fiscal year for model calendar |
+| `set_versionswitchover` | Set version switchover date |
+| `download_importdump` | Download failed import task dump data (CSV) |
+| `download_processdump` | Download failed process task dump data (CSV) |
+| `cancel_task` | Cancel a running import, export, process, or action task |
+| `create_view_readrequest` | Start a large volume view read request |
+| `get_view_readrequest` | Check status of a large volume view read request |
+| `get_view_readrequest_page` | Download a page from a large volume view read (CSV) |
+| `delete_view_readrequest` | Delete a large volume view read request |
+| `create_list_readrequest` | Start a large volume list read request |
+| `get_list_readrequest_page` | Download a page from a large volume list read (CSV) |
+| `delete_list_readrequest` | Delete a large volume list read request |
+| `reset_list_index` | Reset list item index numbering |
 
 ### Transactional Operations (5 tools)
 
@@ -185,7 +210,7 @@ src/
 Three layers:
 
 1. **Auth layer** — pluggable providers behind a common `AuthProvider` interface. The `AuthManager` selects the right provider from env vars and handles token lifecycle.
-2. **API layer** — `AnaplanClient` handles all HTTP communication with the Anaplan API (`https://api.anaplan.com/2/0/`). Retries 429s (respects `Retry-After` header) and 5xx errors up to 3 times with exponential backoff. Auto-paginates list endpoints via `getAll()` using Anaplan's `meta.paging` metadata. Domain wrappers (`WorkspacesApi`, `ModelsApi`, etc.) provide typed methods for each endpoint.
+2. **API layer** — `AnaplanClient` handles all HTTP communication with the Anaplan API (`https://api.anaplan.com/2/0/`). Retries 429s (respects `Retry-After` header) and 5xx errors up to 3 times with exponential backoff. Auto-paginates list endpoints via `getAll()` using Anaplan's `meta.paging` metadata. 16 domain wrappers (`WorkspacesApi`, `ModelsApi`, `ModulesApi`, `ListsApi`, `ImportsApi`, `ExportsApi`, `ProcessesApi`, `FilesApi`, `ActionsApi`, `TransactionalApi`, `DimensionsApi`, `ModelManagementApi`, `CalendarApi`, `VersionsApi`, `UsersApi`, `LargeReadsApi`) provide typed methods for each endpoint.
 3. **Tools layer** — registers MCP tools on the server with zod schemas for input validation. Each tool delegates to the appropriate API wrapper and returns JSON results.
 
 

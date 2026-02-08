@@ -1,11 +1,12 @@
 # Anaplan MCP — API Coverage Roadmap
 
-## Current Coverage (Phase 1 — Done)
+## Current Coverage (Phase 1 + Phase 2 + Phase 2b — Done)
 
-**Integration API v2** (`https://api.anaplan.com/2/0/`) — 27 tools, ~31 endpoints
-- Exploration: workspaces, models, modules, line items, views, lists, imports, exports, processes, files, actions, view details
-- Bulk: run imports/exports/processes/deletes, upload/download files, poll task status
-- Transactional: read/write cells, add/update/delete list items
+**Integration API v2** (`https://api.anaplan.com/2/0/`) — 67 tools, ~80+ endpoints
+
+- **Exploration (37 tools):** workspaces, models, modules, line items, views, lists, imports, exports, processes, files, actions — with detail/metadata endpoints for each, plus cross-module line items/views, dimension items, dimension lookups, model status, calendar, versions, users, task history
+- **Bulk (25 tools):** run imports/exports/processes/deletes, upload/download/delete files, poll task status, close/open/bulk-delete models, set current period/fiscal year/version switchover, download import/process dumps, cancel tasks, large volume view/list reads, reset list index
+- **Transactional (5 tools):** read/write cells, add/update/delete list items
 
 **Authentication** (`https://auth.anaplan.com/token/`)
 - Basic auth, Certificate auth, OAuth 2.0 (device grant)
@@ -17,24 +18,6 @@
 - Accept: application/json header globally
 - JSON format (format=v1) for read_cells
 - File chunk download (actual data, not metadata)
-
----
-
-## Phase 2: Complete Integration API v2 Coverage (NEXT)
-
-**Goal:** Cover all remaining endpoints from the [Apiary docs](https://anaplan.docs.apiary.io/).
-**Plan:** See `docs/plans/2026-02-07-integration-api-v2-complete.md`
-**Estimated:** ~31 new tools, ~40 new endpoints → ~58 tools total
-
-### Missing endpoint groups:
-1. **Workspace & Model Metadata** — single workspace detail, cross-workspace model list, model status
-2. **Model Management** — close/open/bulk-delete models
-3. **Line Items & Dimensions** — cross-module line items, dimension items (model/view/line-item level), lookup by name/code
-4. **Cross-Module Views** — all views in model, transactional-path module/view/lineitem endpoints
-5. **List & Action Metadata** — list metadata (properties, parent), import/export/process/action definition details, delete files
-6. **Calendar & Versions** — current period, fiscal year, version metadata, switchover dates
-7. **Users** — current user, user list, user details
-8. **Import Dumps & Large Volume Reads** — dump files for failed imports, large read requests (>1M cells)
 
 ---
 
@@ -148,14 +131,15 @@
 
 | Phase | API | Tools | Auth | Status |
 |-------|-----|-------|------|--------|
-| 1 | Integration API v2 (core) | 27 | Basic/Cert/OAuth | Done |
-| 2 | Integration API v2 (complete) | ~31 new | Same token | **Next** |
-| 3 | ALM | ~7 | Same token | Planned |
+| 1+2+2b | Integration API v2 (complete) | 67 | Basic/Cert/OAuth | **Done** |
+| 3 | ALM | ~7 | Same token | **Next** |
 | 4 | SCIM | ~12 | Same token | Planned |
 | 5 | CloudWorks | ~7 | Same token | Planned |
 | 6 | Audit | ~2 | Same token | Planned |
 | — | Exception Users | ~3 | Same token | Deferred |
 | — | Financial Consolidation | ~10 | Separate auth | Deferred |
 
-**After Phase 2: ~58 tools — full Integration API v2 coverage**
-**After Phase 6: ~87 tools — all Anaplan APIs with shared auth**
+**Current: 67 tools — complete Integration API v2 coverage**
+**After Phase 6: ~88 tools — all Anaplan APIs with shared auth**
+
+Phases 3-6 can be developed in parallel (different base URLs or independent endpoint groups, no shared wiring files). API docs saved in `docs/anaplan_documentation/`.
