@@ -35,14 +35,17 @@ export class AnaplanClient {
     return this.requestText("GET", path);
   }
 
-  async getAll<T = any>(path: string, key: string): Promise<T[]> {
+  async getAll<T = any>(path: string, key: string | string[]): Promise<T[]> {
     let offset = 0;
     const all: T[] = [];
+    const keys = Array.isArray(key) ? key : [key];
     while (true) {
       const separator = path.includes("?") ? "&" : "?";
       const url = offset === 0 ? path : `${path}${separator}offset=${offset}`;
       const res = await this.request<any>("GET", url);
-      const items: T[] = res[key] ?? [];
+      const items: T[] = keys
+        .map((candidateKey) => res?.[candidateKey])
+        .find((value) => Array.isArray(value)) ?? [];
       all.push(...items);
       const paging = res?.meta?.paging;
       if (!paging || paging.offset + paging.currentPageSize >= paging.totalSize) break;
@@ -91,7 +94,10 @@ export class AnaplanClient {
       const response = await fetch(`${BASE_URL}${path}`, options);
 
       if (response.ok) {
-        return (await response.json()) as T;
+        if (response.status === 204 || response.status === 205) {
+          return {} as T;
+        }
+        return (await response.json().catch(() => ({}))) as T;
       }
 
       if (response.status === 429) {

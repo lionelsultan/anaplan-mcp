@@ -117,6 +117,20 @@ describe("AnaplanClient", () => {
     );
   });
 
+  it("treats 204 No Content as successful empty response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+    } as Response);
+
+    const client = new AnaplanClient(mockAuthManager as any);
+    const result = await client.delete("/workspaces/w/models/m/files/f");
+    expect(result).toEqual({});
+  });
+
   describe("getAll", () => {
     it("returns all items from a single page", async () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -185,6 +199,18 @@ describe("AnaplanClient", () => {
       const client = new AnaplanClient(mockAuthManager as any);
       const result = await client.getAll<any>("/test", "items");
       expect(result).toEqual([]);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("supports fallback keys and uses first array key found", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ users: [{ id: "u1" }] }),
+      } as Response);
+
+      const client = new AnaplanClient(mockAuthManager as any);
+      const result = await client.getAll<any>("/users", ["users", "user"]);
+      expect(result).toEqual([{ id: "u1" }]);
       expect(fetch).toHaveBeenCalledTimes(1);
     });
 

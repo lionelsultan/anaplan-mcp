@@ -42,6 +42,21 @@ describe("VersionsApi", () => {
     expect(result).toEqual([]);
   });
 
+  it("list() supports versionMetadata response shape", async () => {
+    mockClient.get.mockResolvedValue({
+      versionMetadata: [
+        { id: "v1", name: "Actual", isActual: true },
+      ],
+    });
+    const api = new VersionsApi(mockClient as any);
+
+    const result = await api.list("m1");
+
+    expect(result).toEqual([
+      { id: "v1", name: "Actual", isActual: true },
+    ]);
+  });
+
   it("setSwitchover() calls PUT /models/{mId}/versions/{vId}/switchover with { date } body", async () => {
     mockClient.put.mockResolvedValue({ status: { code: 200, message: "Success" } });
     const api = new VersionsApi(mockClient as any);

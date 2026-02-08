@@ -30,7 +30,7 @@ describe("CalendarApi", () => {
     expect(result.currentPeriod.name).toBe("Jan 23");
   });
 
-  it("setCurrentPeriod() calls PUT with { periodText } body", async () => {
+  it("setCurrentPeriod() calls PUT with { date } body", async () => {
     mockClient.put.mockResolvedValue({ currentPeriod: { name: "Feb 23" } });
     const api = new CalendarApi(mockClient as any);
 
@@ -38,7 +38,7 @@ describe("CalendarApi", () => {
 
     expect(mockClient.put).toHaveBeenCalledWith(
       "/workspaces/ws1/models/m1/currentPeriod",
-      { periodText: "Feb 23" }
+      { date: "Feb 23" }
     );
     expect(result.currentPeriod.name).toBe("Feb 23");
   });

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ImportsApi } from "../api/imports.js";
 import type { ExportsApi } from "../api/exports.js";
@@ -28,17 +31,71 @@ interface BulkApis {
   actions: ActionsApi;
 }
 
+function sanitizeFileName(value: string): string {
+  return value
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extensionFromExportFormat(exportFormat?: string): string {
+  if (!exportFormat) return "txt";
+  const format = exportFormat.toLowerCase();
+  if (format.includes("csv")) return "csv";
+  if (format.includes("json")) return "json";
+  if (format.includes("xml")) return "xml";
+  if (format.includes("xlsx") || format.includes("spreadsheet")) return "xlsx";
+  if (format.includes("pdf")) return "pdf";
+  if (format.includes("text") || format.includes("plain")) return "txt";
+  return "txt";
+}
+
+function defaultExportFileName(exportName: string, exportFormat?: string): string {
+  const safeName = sanitizeFileName(exportName) || "anaplan-export";
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const extension = extensionFromExportFormat(exportFormat);
+  return `${safeName}-${timestamp}.${extension}`;
+}
+
 export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: NameResolver) {
   server.tool("run_export", "Execute an export action and return the exported data", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     exportId: z.string().describe("Export action ID or name"),
-  }, async ({ workspaceId, modelId, exportId }) => {
+    saveToDownloads: z.boolean().optional().describe("If true, save the exported file to ~/Downloads"),
+    fileName: z.string().optional().describe("Optional local file name when saveToDownloads is true"),
+  }, async ({ workspaceId, modelId, exportId, saveToDownloads, fileName }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const eId = await resolver.resolveExport(wId, mId, exportId);
     const task = await apis.exports.run(wId, mId, eId);
-    return { content: [{ type: "text", text: JSON.stringify(task, null, 2) }] };
+    const fileId = task?.result?.objectId ?? task?.objectId;
+    if (!fileId) {
+      throw new Error(`Export task completed but no output file ID was returned for export ${eId}.`);
+    }
+    const content = await apis.files.download(wId, mId, fileId);
+    const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
+    const preview = text.length > 50000
+      ? text.slice(0, 50000) + `\n\n[Truncated - showing first 50000 of ${text.length} characters]`
+      : text;
+
+    if (saveToDownloads) {
+      const exportMetadata = await apis.exports.get(wId, mId, eId);
+      const defaultName = defaultExportFileName(exportMetadata?.name ?? `export-${eId}`, exportMetadata?.exportFormat);
+      const requestedName = fileName?.trim();
+      const resolvedName = sanitizeFileName(requestedName && requestedName.length > 0 ? requestedName : defaultName) || defaultName;
+      const outputPath = join(homedir(), "Downloads", resolvedName);
+      await writeFile(outputPath, text, "utf8");
+      return {
+        content: [{
+          type: "text",
+          text: `Export saved to ${outputPath}\n\nPreview:\n${preview}`,
+        }],
+      };
+    }
+
+    const prompt = "\n\nTip: Set `saveToDownloads` to `true` to save this export in your Downloads folder.";
+    return { content: [{ type: "text", text: `${preview}${prompt}` }] };
   });
 
   server.tool("run_import", "Upload data then execute an import action", {
@@ -130,14 +187,21 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
   server.tool("get_action_status", "Check status of a running action task", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
-    actionType: z.enum(["imports", "exports", "processes"]).describe("Type of action"),
-    actionId: z.string().describe("Action ID"),
+    actionType: z.enum(["imports", "exports", "processes", "actions"]).describe("Type of action"),
+    actionId: z.string().describe("Action ID or name"),
     taskId: z.string().describe("Task ID"),
   }, async ({ workspaceId, modelId, actionType, actionId, taskId }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
+    const resolveMap: Record<string, (wId: string, mId: string, name: string) => Promise<string>> = {
+      imports: (w, m, n) => resolver.resolveImport(w, m, n),
+      exports: (w, m, n) => resolver.resolveExport(w, m, n),
+      processes: (w, m, n) => resolver.resolveProcess(w, m, n),
+      actions: (w, m, n) => resolver.resolveAction(w, m, n),
+    };
+    const aId = await resolveMap[actionType](wId, mId, actionId);
     const res = await apis.client.get(
-      `/workspaces/${wId}/models/${mId}/${actionType}/${actionId}/tasks/${taskId}`
+      `/workspaces/${wId}/models/${mId}/${actionType}/${aId}/tasks/${taskId}`
     );
     return { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
   });
@@ -346,6 +410,19 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     const mId = await resolver.resolveModel(wId, modelId);
     const lId = await resolver.resolveList(wId, mId, listId);
     const result = await apis.largeReads.createListReadRequest(wId, mId, lId);
+    return { content: [{ type: "text" as const, text: JSON.stringify(result.listReadRequest ?? result, null, 2) }] };
+  });
+
+  server.tool("get_list_readrequest", "Check status of a large volume list read request", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+    listId: z.string().describe("List ID or name"),
+    requestId: z.string().describe("Read request ID"),
+  }, async ({ workspaceId, modelId, listId, requestId }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const lId = await resolver.resolveList(wId, mId, listId);
+    const result = await apis.largeReads.getListReadRequest(wId, mId, lId, requestId);
     return { content: [{ type: "text" as const, text: JSON.stringify(result.listReadRequest ?? result, null, 2) }] };
   });
 

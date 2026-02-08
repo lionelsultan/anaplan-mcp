@@ -12,11 +12,11 @@ export class CalendarApi {
   async setCurrentPeriod(
     workspaceId: string,
     modelId: string,
-    periodText: string
+    date: string
   ) {
     return this.client.put<any>(
       `/workspaces/${workspaceId}/models/${modelId}/currentPeriod`,
-      { periodText }
+      { date }
     );
   }
 

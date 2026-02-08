@@ -23,13 +23,14 @@ export function formatTable(items: any[], columns: Column[], label: string, opti
   const search = options?.search?.toLowerCase();
   const offset = Math.max(0, options?.offset ?? 0);
   const limit = Math.min(Math.max(1, options?.limit ?? DEFAULT_LIMIT), MAX_LIMIT);
+  const searchableKeys = Array.from(new Set(["name", "id", ...columns.map((c) => c.key)]));
 
-  // Filter by search (case-insensitive substring on name or id)
+  // Filter by search (case-insensitive substring on key fields used in table output)
   const filtered = search
     ? items.filter((item) => {
-        const name = String(item.name ?? "").toLowerCase();
-        const id = String(item.id ?? "").toLowerCase();
-        return name.includes(search) || id.includes(search);
+        return searchableKeys.some((key) =>
+          String(item[key] ?? "").toLowerCase().includes(search)
+        );
       })
     : items;
 
@@ -37,13 +38,22 @@ export function formatTable(items: any[], columns: Column[], label: string, opti
     return { table: "", footer: `No ${label} matching "${options!.search}". Try a different search term.` };
   }
 
+  if (filtered.length === 1 && !search) {
+    const item = filtered[0];
+    const rows = columns.map((column) => `| ${column.header} | ${String(item[column.key] ?? "")} |`);
+    return { table: rows.join("\n"), footer: "" };
+  }
+
   const total = filtered.length;
-  const display = filtered.slice(offset, offset + limit);
+  const safeOffset = offset >= total
+    ? Math.max(0, Math.floor((total - 1) / limit) * limit)
+    : offset;
+  const display = filtered.slice(safeOffset, safeOffset + limit);
 
   const headers = ["#", ...columns.map((c) => c.header)];
   const separator = headers.map(() => "---");
   const rows = display.map((item, i) =>
-    [String(offset + i + 1), ...columns.map((c) => String(item[c.key] ?? ""))]
+    [String(safeOffset + i + 1), ...columns.map((c) => String(item[c.key] ?? ""))]
   );
 
   const table = [
@@ -53,13 +63,13 @@ export function formatTable(items: any[], columns: Column[], label: string, opti
   ].join("\n");
 
   const footerLines: string[] = [];
-  const start = offset + 1;
-  const end = Math.min(offset + limit, total);
+  const start = safeOffset + 1;
+  const end = Math.min(safeOffset + limit, total);
   const matchSuffix = search ? ` matching "${options!.search}"` : "";
   const totalPages = Math.ceil(total / limit);
-  const currentPage = Math.floor(offset / limit) + 1;
+  const currentPage = Math.floor(safeOffset / limit) + 1;
 
-  if (total <= limit && offset === 0) {
+  if (total <= limit && safeOffset === 0) {
     if (search) {
       footerLines.push(`${total} ${label}${matchSuffix}.`);
     } else {

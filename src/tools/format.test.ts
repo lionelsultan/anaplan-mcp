@@ -41,7 +41,8 @@ describe("formatTable", () => {
       { header: "Type", key: "type" },
     ];
     const { table } = formatTable(items, cols, "things");
-    expect(table).toContain("| 1 | X |  |");
+    expect(table).toContain("| Name | X |");
+    expect(table).toContain("| Type |  |");
   });
 
   it("filters items by search on name (case-insensitive)", () => {
@@ -123,5 +124,44 @@ describe("formatTable", () => {
     const { table, footer } = formatTable(items, cols, "items", { search: "zzz" });
     expect(table).toBe("");
     expect(footer).toBe('No items matching "zzz". Try a different search term.');
+  });
+
+  it("renders single-row results as key-value rows without header/footer", () => {
+    const items = [{ name: "Sales Forecast", id: "m1", activeState: "UNLOCKED" }];
+    const cols = [
+      { header: "Model", key: "name" },
+      { header: "Model ID", key: "id" },
+      { header: "State", key: "activeState" },
+    ];
+    const { table, footer } = formatTable(items, cols, "model details");
+    expect(table).toContain("| Model | Sales Forecast |");
+    expect(table).toContain("| Model ID | m1 |");
+    expect(table).toContain("| State | UNLOCKED |");
+    expect(table).not.toContain("| # |");
+    expect(footer).toBe("");
+  });
+
+  it("searches across displayed columns, not just name/id", () => {
+    const items = [
+      { firstName: "Alice", email: "alice@example.com", id: "u1" },
+      { firstName: "Bob", email: "bob@example.com", id: "u2" },
+    ];
+    const cols = [
+      { header: "Name", key: "firstName" },
+      { header: "Email", key: "email" },
+      { header: "ID", key: "id" },
+    ];
+    const { table, footer } = formatTable(items, cols, "users", { search: "alice" });
+    expect(table).toContain("| 1 | Alice | alice@example.com | u1 |");
+    expect(table).not.toContain("Bob");
+    expect(footer).toContain('1 users matching "alice".');
+  });
+
+  it("clamps out-of-range offsets to the last available page", () => {
+    const items = Array.from({ length: 3 }, (_, i) => ({ name: `Item ${i}`, id: `${i}` }));
+    const cols = [{ header: "Name", key: "name" }, { header: "ID", key: "id" }];
+    const { table, footer } = formatTable(items, cols, "items", { offset: 10, limit: 2 });
+    expect(table).toContain("| 3 | Item 2 | 2 |");
+    expect(footer).toContain("Page 2 of 2 (3-3 of 3 items).");
   });
 });

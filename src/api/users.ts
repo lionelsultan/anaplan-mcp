@@ -14,6 +14,6 @@ export class UsersApi {
   }
 
   async list() {
-    return this.client.getAll<any>("/users", "user");
+    return this.client.getAll<any>("/users", ["users", "user"]);
   }
 }

@@ -45,8 +45,9 @@ export class TransactionalApi {
     return res.views ?? [];
   }
 
-  async getModuleLineItems(modelId: string, moduleId: string) {
-    const res = await this.client.get<any>(`/models/${modelId}/modules/${moduleId}/lineItems`);
+  async getModuleLineItems(modelId: string, moduleId: string, includeAll = false) {
+    const suffix = includeAll ? "?includeAll=true" : "";
+    const res = await this.client.get<any>(`/models/${modelId}/modules/${moduleId}/lineItems${suffix}`);
     return res.items ?? [];
   }
 

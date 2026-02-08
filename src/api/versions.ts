@@ -5,7 +5,7 @@ export class VersionsApi {
 
   async list(modelId: string) {
     const res = await this.client.get<any>(`/models/${modelId}/versions`);
-    return res.versions ?? [];
+    return res.versions ?? res.versionMetadata ?? [];
   }
 
   async setSwitchover(modelId: string, versionId: string, date: string) {

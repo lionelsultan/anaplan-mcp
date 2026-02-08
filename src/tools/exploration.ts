@@ -50,6 +50,28 @@ function tableResult(items: any[], columns: { header: string; key: string }[], l
   return { content };
 }
 
+function tableCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).replace(/\r?\n/g, " ").replace(/\|/g, "\\|");
+}
+
+function lineItemAppliesTo(item: any): string {
+  if (Array.isArray(item.appliesTo)) {
+    return item.appliesTo.map((dim: any) => dim?.name ?? dim?.id ?? "").filter(Boolean).join(", ");
+  }
+  return item.appliesTo ?? "";
+}
+
+function enrichLineItems(items: any[]) {
+  return items.map((item) => ({
+    ...item,
+    formulaDisplay: tableCell(item.formula),
+    formatDisplay: tableCell(item.format ?? item.formatMetadata?.dataType),
+    versionDisplay: tableCell(item.version?.name ?? item.version?.id ?? item.version),
+    appliesToDisplay: tableCell(lineItemAppliesTo(item)),
+  }));
+}
+
 export function registerExplorationTools(server: McpServer, apis: ExplorationApis, resolver: NameResolver) {
   server.tool("show_workspaces", "List all accessible Anaplan workspaces", {
     ...paginationParams,
@@ -114,12 +136,23 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     moduleId: z.string().describe("Anaplan module ID or name"),
+    includeAll: z.boolean().optional().describe("Include full metadata (formula, format, version, appliesTo)"),
     ...paginationParams,
-  }, async ({ workspaceId, modelId, moduleId, offset, limit, search }) => {
+  }, async ({ workspaceId, modelId, moduleId, includeAll, offset, limit, search }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const modId = await resolver.resolveModule(wId, mId, moduleId);
-    const items = await apis.modules.listLineItems(wId, mId, modId);
+    const items = await apis.transactional.getModuleLineItems(mId, modId, includeAll ?? false);
+    if (includeAll) {
+      return tableResult(enrichLineItems(items), [
+        { header: "Name", key: "name" },
+        { header: "Formula", key: "formulaDisplay" },
+        { header: "Format", key: "formatDisplay" },
+        { header: "Applies To", key: "appliesToDisplay" },
+        { header: "Version", key: "versionDisplay" },
+        { header: "ID", key: "id" },
+      ], "line items", { offset, limit, search });
+    }
     return tableResult(items, [{ header: "Name", key: "name" }, { header: "Module", key: "moduleName" }, { header: "ID", key: "id" }], "line items", { offset, limit, search });
   });
 
@@ -358,6 +391,17 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     ...paginationParams,
   }, async ({ modelId, includeAll, offset, limit, search }) => {
     const items = await apis.transactional.getAllLineItems(modelId, includeAll ?? false);
+    if (includeAll) {
+      return tableResult(enrichLineItems(items), [
+        { header: "Name", key: "name" },
+        { header: "Module", key: "moduleName" },
+        { header: "Formula", key: "formulaDisplay" },
+        { header: "Format", key: "formatDisplay" },
+        { header: "Applies To", key: "appliesToDisplay" },
+        { header: "Version", key: "versionDisplay" },
+        { header: "ID", key: "id" },
+      ], "line items", { offset, limit, search });
+    }
     return tableResult(items, [
       { header: "Name", key: "name" },
       { header: "Module", key: "moduleName" },
@@ -365,7 +409,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     ], "line items", { offset, limit, search });
   });
 
-  server.tool("show_lineitemdimensions", "List dimension IDs for a line item", {
+  server.tool("show_lineitem_dimensions", "List dimension IDs for a line item", {
     modelId: z.string().describe("Anaplan model ID"),
     lineItemId: z.string().describe("Line item ID"),
   }, async ({ modelId, lineItemId }) => {
@@ -420,7 +464,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     ], "matched items");
   });
 
-  server.tool("show_lineitemdimensionitems", "List dimension items for a specific line item", {
+  server.tool("show_lineitem_dimensions_items", "List dimension items for a specific line item", {
     modelId: z.string().describe("Anaplan model ID"),
     lineItemId: z.string().describe("Line item ID"),
     dimensionId: z.string().describe("Dimension ID"),

@@ -59,7 +59,7 @@ describe("UsersApi", () => {
     expect(result.email).toBe("direct@example.com");
   });
 
-  it("list() calls getAll with /users and key 'user'", async () => {
+  it("list() calls getAll with /users and keys ['users','user']", async () => {
     mockClient.getAll.mockResolvedValue([
       { id: "u1", email: "admin@example.com" },
       { id: "u2", email: "user@example.com" },
@@ -68,7 +68,7 @@ describe("UsersApi", () => {
 
     const result = await api.list();
 
-    expect(mockClient.getAll).toHaveBeenCalledWith("/users", "user");
+    expect(mockClient.getAll).toHaveBeenCalledWith("/users", ["users", "user"]);
     expect(result).toEqual([
       { id: "u1", email: "admin@example.com" },
       { id: "u2", email: "user@example.com" },

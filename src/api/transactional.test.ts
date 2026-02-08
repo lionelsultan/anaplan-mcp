@@ -236,6 +236,16 @@ describe("TransactionalApi", () => {
       expect(client.get).toHaveBeenCalledWith("/models/m1/modules/mod1/lineItems");
       expect(result).toEqual([{ id: "li1", name: "Revenue" }]);
     });
+
+    it("appends ?includeAll=true when requested", async () => {
+      const client = mockClient();
+      (client.get as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [] });
+      const api = new TransactionalApi(client);
+
+      await api.getModuleLineItems("m1", "mod1", true);
+
+      expect(client.get).toHaveBeenCalledWith("/models/m1/modules/mod1/lineItems?includeAll=true");
+    });
   });
 
   describe("getViewMetadata", () => {

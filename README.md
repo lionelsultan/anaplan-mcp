@@ -6,7 +6,7 @@
 
 # Anaplan MCP
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, manage list items, and administer models - all through 67 structured tools.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, manage list items, and administer models - all through 68 structured tools.
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
@@ -48,7 +48,7 @@ Add the following to your MCP client config. The file location depends on your c
 
 ### 3. Restart your MCP client
 
-Restart Claude Desktop or Claude Code to pick up the new server. The 67 Anaplan tools should now be available.
+Restart Claude Desktop or Claude Code to pick up the new server. The 68 Anaplan tools should now be available.
 
 ### Browser-based AI (claude.ai, gemini.google.com, chatgpt.com)
 
@@ -74,87 +74,98 @@ All methods produce a token that is cached in memory and automatically refreshed
 
 ### Model Exploration (37 tools)
 
-| Tool | Description |
-|------|-------------|
-| `show_workspaces` | List all accessible workspaces |
-| `show_workspacedetails` | Get workspace details (size, active status) |
-| `show_models` | List models in a workspace |
-| `show_allmodels` | List all models across all workspaces |
-| `show_modeldetails` | Get model details including status and workspace |
-| `show_modelstatus` | Check model status (memory usage, export progress) |
-| `show_modules` | List modules in a model |
-| `show_moduledetails` | Get module details with dimensions |
-| `show_lineitems` | List line items in a module |
-| `show_alllineitems` | List all line items in a model (cross-module) |
-| `show_lineitemdimensions` | List dimension IDs for a line item |
-| `show_lineitemdimensionitems` | List dimension items for a specific line item |
-| `show_savedviews` | List saved views in a module |
-| `show_allviews` | List all views in a model (cross-module) |
-| `show_viewdetails` | Get view dimension metadata (rows, columns, pages) |
-| `show_lists` | List all dimensions (lists) in a model |
-| `get_list_items` | Get items in a list |
-| `show_listmetadata` | Get list metadata (properties, parent, item count) |
-| `show_dimensionitems` | List all items in a dimension (model-level) |
-| `show_viewdimensionitems` | List selected items in a dimension for a view |
-| `lookup_dimensionitems` | Look up dimension items by name or code |
-| `show_imports` | List available import actions |
-| `show_importdetails` | Get import definition metadata |
-| `show_exports` | List available export actions |
-| `show_exportdetails` | Get export definition metadata |
-| `show_processes` | List available processes |
-| `show_processdetails` | Get process definition metadata |
-| `show_files` | List files in a model |
-| `show_actions` | List available actions (including delete actions) |
-| `show_actiondetails` | Get action definition metadata |
-| `show_currentperiod` | Get current period for a model |
-| `show_modelcalendar` | Get model calendar with fiscal year settings |
-| `show_versions` | List version metadata for a model |
-| `show_currentuser` | Get current authenticated user info |
-| `show_users` | List all users in the tenant |
-| `show_userdetails` | Get user details by ID |
-| `show_tasks` | List task history for an import, export, process, or action |
+| MCP Tool | API Endpoint | Description |
+|----------|--------------|-------------|
+| `show_workspaces` | `GET /workspaces` | List all accessible workspaces |
+| `show_workspacedetails` | `GET /workspaces/{workspaceId}` | Get workspace details (size and active status) |
+| `show_models` | `GET /workspaces/{workspaceId}/models` | List models in a workspace |
+| `show_allmodels` | `GET /models` | List all models across all workspaces |
+| `show_modeldetails` | `GET /models/{modelId}` | Get model details including state and workspace |
+| `show_modelstatus` | `POST /workspaces/{workspaceId}/models/{modelId}/status` | Check model status (legacy endpoint, often returns 405) |
+| `show_modules` | `GET /workspaces/{workspaceId}/models/{modelId}/modules` | List modules in a model |
+| `show_moduledetails` | `GET /workspaces/{workspaceId}/models/{modelId}/modules` | Get module details by filtering module list |
+| `show_lineitems` | `GET /models/{modelId}/modules/{moduleId}/lineItems` | List line items in a module (`includeAll` supported) |
+| `show_alllineitems` | `GET /models/{modelId}/lineItems` | List all line items in a model (`includeAll` supported) |
+| `show_lineitem_dimensions` | `GET /models/{modelId}/lineItems/{lineItemId}/dimensions` | List dimensions for a line item |
+| `show_lineitem_dimensions_items` | `GET /models/{modelId}/lineItems/{lineItemId}/dimensions/{dimensionId}/items` | List dimension items for a line item/dimension pair |
+| `show_savedviews` | `GET /workspaces/{workspaceId}/models/{modelId}/modules/{moduleId}/views` | List saved and default views in a module |
+| `show_allviews` | `GET /models/{modelId}/views` | List all views in a model (cross-module) |
+| `show_viewdetails` | `GET /models/{modelId}/views/{viewId}` | Get view axis metadata (rows, columns, pages) |
+| `show_lists` | `GET /workspaces/{workspaceId}/models/{modelId}/lists` | List lists (dimensions) in a model |
+| `get_list_items` | `GET /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/items` | Get items from a list |
+| `show_listmetadata` | `GET /workspaces/{workspaceId}/models/{modelId}/lists/{listId}` | Get list metadata including parent/properties/count |
+| `show_dimensionitems` | `GET /models/{modelId}/dimensions/{dimensionId}/items` | List all items in a model-level dimension |
+| `show_viewdimensionitems` | `GET /models/{modelId}/views/{viewId}/dimensions/{dimensionId}/items` | List selected dimension items for a view |
+| `lookup_dimensionitems` | `POST /workspaces/{workspaceId}/models/{modelId}/dimensions/{dimensionId}/items` | Resolve dimension items by names/codes |
+| `show_imports` | `GET /workspaces/{workspaceId}/models/{modelId}/imports` | List import actions in a model |
+| `show_importdetails` | `GET /workspaces/{workspaceId}/models/{modelId}/imports/{importId}` | Get import metadata |
+| `show_exports` | `GET /workspaces/{workspaceId}/models/{modelId}/exports` | List export actions in a model |
+| `show_exportdetails` | `GET /workspaces/{workspaceId}/models/{modelId}/exports/{exportId}` | Get export metadata |
+| `show_processes` | `GET /workspaces/{workspaceId}/models/{modelId}/processes` | List process actions in a model |
+| `show_processdetails` | `GET /workspaces/{workspaceId}/models/{modelId}/processes/{processId}` | Get process metadata |
+| `show_files` | `GET /workspaces/{workspaceId}/models/{modelId}/files` | List files in a model |
+| `show_actions` | `GET /workspaces/{workspaceId}/models/{modelId}/actions` | List model actions (including deletes) |
+| `show_actiondetails` | `GET /workspaces/{workspaceId}/models/{modelId}/actions/{actionId}` | Get action metadata |
+| `show_currentperiod` | `GET /workspaces/{workspaceId}/models/{modelId}/currentPeriod` | Get current period |
+| `show_modelcalendar` | `GET /workspaces/{workspaceId}/models/{modelId}/modelCalendar` | Get fiscal year/calendar settings |
+| `show_versions` | `GET /models/{modelId}/versions` | List version metadata |
+| `show_currentuser` | `GET /users/me` | Get current authenticated user |
+| `show_users` | `GET /users` | List users in tenant scope |
+| `show_userdetails` | `GET /users/{userId}` | Get user details by ID |
+| `show_tasks` | `GET /workspaces/{workspaceId}/models/{modelId}/{actionType}/{actionId}/tasks` | List task history for imports/exports/processes/actions |
 
-### Bulk Data Operations (25 tools)
+### Bulk Data Operations (26 tools)
 
-| Tool | Description |
-|------|-------------|
-| `run_export` | Execute an export action and return the exported data |
-| `run_import` | Upload data to a file, then execute an import action |
-| `run_process` | Execute a process (chained sequence of actions) |
-| `run_delete` | Execute a delete action to remove data from a module |
-| `upload_file` | Upload CSV or text data to an Anaplan file (chunked for large files) |
-| `download_file` | Download file content from a model |
-| `delete_file` | Delete a file from a model |
-| `get_action_status` | Check the status of a running action by task ID |
-| `close_model` | Close (archive) a model |
-| `open_model` | Open (wake up) a closed model |
-| `bulk_delete_models` | Bulk delete closed models (irreversible) |
-| `set_currentperiod` | Set current period for a model |
-| `set_fiscalyear` | Update fiscal year for model calendar |
-| `set_versionswitchover` | Set version switchover date |
-| `download_importdump` | Download failed import task dump data (CSV) |
-| `download_processdump` | Download failed process task dump data (CSV) |
-| `cancel_task` | Cancel a running import, export, process, or action task |
-| `create_view_readrequest` | Start a large volume view read request |
-| `get_view_readrequest` | Check status of a large volume view read request |
-| `get_view_readrequest_page` | Download a page from a large volume view read (CSV) |
-| `delete_view_readrequest` | Delete a large volume view read request |
-| `create_list_readrequest` | Start a large volume list read request |
-| `get_list_readrequest_page` | Download a page from a large volume list read (CSV) |
-| `delete_list_readrequest` | Delete a large volume list read request |
-| `reset_list_index` | Reset list item index numbering |
+| MCP Tool | API Endpoint | Description |
+|----------|--------------|-------------|
+| `run_export` | `POST /workspaces/{workspaceId}/models/{modelId}/exports/{exportId}/tasks` | Run export task, download output file chunks, and optionally save locally with `saveToDownloads` and `fileName` |
+| `run_import` | `POST /workspaces/{workspaceId}/models/{modelId}/imports/{importId}/tasks` | Upload file chunks, run import, and poll task completion |
+| `run_process` | `POST /workspaces/{workspaceId}/models/{modelId}/processes/{processId}/tasks` | Run process task and poll completion |
+| `run_delete` | `POST /workspaces/{workspaceId}/models/{modelId}/actions/{deleteActionId}/tasks` | Run delete action task |
+| `upload_file` | `POST /workspaces/{workspaceId}/models/{modelId}/files/{fileId}` | Initialize chunked upload, upload chunks, and complete file upload |
+| `download_file` | `GET /workspaces/{workspaceId}/models/{modelId}/files/{fileId}/chunks` | Download file by reading all chunk payloads |
+| `delete_file` | `DELETE /workspaces/{workspaceId}/models/{modelId}/files/{fileId}` | Delete model file (irreversible) |
+| `get_action_status` | `GET /workspaces/{workspaceId}/models/{modelId}/{actionType}/{actionId}/tasks/{taskId}` | Get status for import/export/process/action task |
+| `close_model` | `POST /workspaces/{workspaceId}/models/{modelId}/close` | Close (archive) a model |
+| `open_model` | `POST /workspaces/{workspaceId}/models/{modelId}/open` | Open (wake up) a closed model |
+| `bulk_delete_models` | `POST /workspaces/{workspaceId}/bulkDeleteModels` | Delete multiple closed models |
+| `set_currentperiod` | `PUT /workspaces/{workspaceId}/models/{modelId}/currentPeriod` | Set current period |
+| `set_fiscalyear` | `PUT /workspaces/{workspaceId}/models/{modelId}/modelCalendar/fiscalYear` | Update model fiscal year |
+| `set_versionswitchover` | `PUT /models/{modelId}/versions/{versionId}/switchover` | Set version switchover date |
+| `download_importdump` | `GET /workspaces/{workspaceId}/models/{modelId}/imports/{importId}/tasks/{taskId}/dump/chunks` | Download failed import dump chunks (CSV) |
+| `download_processdump` | `GET /workspaces/{workspaceId}/models/{modelId}/processes/{processId}/tasks/{taskId}/dumps/{objectId}/chunks` | Download failed process dump chunks (CSV) |
+| `cancel_task` | `DELETE /workspaces/{workspaceId}/models/{modelId}/{actionType}/{actionId}/tasks/{taskId}` | Cancel running import/export/process/action task |
+| `create_view_readrequest` | `POST /workspaces/{workspaceId}/models/{modelId}/views/{viewId}/readRequests` | Create large-volume view read request |
+| `get_view_readrequest` | `GET /workspaces/{workspaceId}/models/{modelId}/views/{viewId}/readRequests/{requestId}` | Get large-volume view read request status |
+| `get_view_readrequest_page` | `GET /workspaces/{workspaceId}/models/{modelId}/views/{viewId}/readRequests/{requestId}/pages/{pageNo}` | Download a CSV page from view read request |
+| `delete_view_readrequest` | `DELETE /workspaces/{workspaceId}/models/{modelId}/views/{viewId}/readRequests/{requestId}` | Delete large-volume view read request |
+| `create_list_readrequest` | `POST /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/readRequests` | Create large-volume list read request |
+| `get_list_readrequest` | `GET /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/readRequests/{requestId}` | Get large-volume list read request status |
+| `get_list_readrequest_page` | `GET /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/readRequests/{requestId}/pages/{pageNo}` | Download a CSV page from list read request |
+| `delete_list_readrequest` | `DELETE /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/readRequests/{requestId}` | Delete large-volume list read request |
+| `reset_list_index` | `POST /models/{modelId}/lists/{listId}/resetIndex` | Reset list item index numbering |
 
 ### Transactional Operations (5 tools)
 
-| Tool | Description |
-|------|-------------|
-| `read_cells` | Read cell data from a module view |
-| `write_cells` | Write values to specific cells in a module |
-| `add_list_items` | Add new items to a list |
-| `update_list_items` | Update properties of existing list items |
-| `delete_list_items` | Remove items from a list |
+| MCP Tool | API Endpoint | Description |
+|----------|--------------|-------------|
+| `read_cells` | `GET /models/{modelId}/views/{viewId}/data?format=v1` | Read cell data from a module view |
+| `write_cells` | `POST /models/{modelId}/modules/{moduleId}/data` | Write values to specific module cells |
+| `add_list_items` | `POST /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/items?action=add` | Add new items to a list |
+| `update_list_items` | `PUT /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/items?action=update` | Update existing list items |
+| `delete_list_items` | `POST /workspaces/{workspaceId}/models/{modelId}/lists/{listId}/items?action=delete` | Delete list items |
 
 ## Features
+
+### Recent Additions
+
+- Formula metadata support for line items: `show_lineitems` and `show_alllineitems` now support `includeAll=true` and display formula, format, applies-to, and version fields.
+- Consistent single-record rendering: table output now renders one-record results as key-value rows (no header), while multi-record results use standard column headers.
+- Expanded large-list read support: `get_list_readrequest` added to check list read request status directly.
+- Broader task status coverage: `get_action_status` now supports `actions` in addition to `imports`, `exports`, and `processes`.
+- Improved API robustness: HTTP `204/205` success responses are handled without JSON parse failures.
+- Optional export file save: `run_export` can now write the downloaded content to `~/Downloads` when `saveToDownloads=true`.
+- Improved user-list compatibility: `show_users` now handles both `/users` response shapes (`users` and `user` arrays).
 
 ### Name Resolution
 
@@ -210,6 +221,7 @@ Three layers:
 ## Disclaimers
 
 - This project is built against the [Anaplan Integration API v2](https://anaplan.docs.apiary.io/), which served as the primary API reference
+- `show_modelstatus` uses `POST /workspaces/{workspaceId}/models/{modelId}/status`; this endpoint is present in some historical docs but often returns `405 Method Not Allowed` in current tenants, so treat it as unsupported unless your tenant confirms availability
 - This is a personal project, not affiliated with or endorsed by Anaplan
 - Users are responsible for compliance with Anaplan's Terms of Service
 - Always test in non-production environments first
