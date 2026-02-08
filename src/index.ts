@@ -15,4 +15,4 @@ main().catch((error) => {
   process.exit(1);
 });
 
-// v1.1.0-ls21 - LS x CC
+// v1.0.0-ls21 - LS x CC
