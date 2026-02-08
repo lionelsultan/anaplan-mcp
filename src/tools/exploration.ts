@@ -12,6 +12,9 @@ import type { ActionsApi } from "../api/actions.js";
 import type { TransactionalApi } from "../api/transactional.js";
 import type { ModelManagementApi } from "../api/modelManagement.js";
 import type { DimensionsApi } from "../api/dimensions.js";
+import type { CalendarApi } from "../api/calendar.js";
+import type { VersionsApi } from "../api/versions.js";
+import type { UsersApi } from "../api/users.js";
 import type { NameResolver } from "../resolver.js";
 import { formatTable, type FormatOptions } from "./format.js";
 
@@ -28,6 +31,9 @@ interface ExplorationApis {
   transactional: TransactionalApi;
   modelManagement: ModelManagementApi;
   dimensions: DimensionsApi;
+  calendar: CalendarApi;
+  versions: VersionsApi;
+  users: UsersApi;
 }
 
 const paginationParams = {
@@ -426,5 +432,103 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
       { header: "Code", key: "code" },
       { header: "ID", key: "id" },
     ], "line item dimension items", { offset, limit, search });
+  });
+
+  // Calendar
+  server.tool("show_currentperiod", "Get current period for a model", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+  }, async ({ workspaceId, modelId }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const result = await apis.calendar.getCurrentPeriod(wId, mId);
+    return { content: [{ type: "text" as const, text: JSON.stringify(result.currentPeriod ?? result, null, 2) }] };
+  });
+
+  server.tool("show_modelcalendar", "Get model calendar with fiscal year settings", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+  }, async ({ workspaceId, modelId }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const result = await apis.calendar.getModelCalendar(wId, mId);
+    return { content: [{ type: "text" as const, text: JSON.stringify(result.modelCalendar ?? result, null, 2) }] };
+  });
+
+  // Versions
+  server.tool("show_versions", "List version metadata for a model", {
+    modelId: z.string().describe("Anaplan model ID"),
+    ...paginationParams,
+  }, async ({ modelId, offset, limit, search }) => {
+    const versions = await apis.versions.list(modelId);
+    return tableResult(versions, [
+      { header: "Name", key: "name" },
+      { header: "Current", key: "isCurrent" },
+      { header: "Actual", key: "isActual" },
+      { header: "ID", key: "id" },
+    ], "versions", { offset, limit, search });
+  });
+
+  // Users
+  server.tool("show_currentuser", "Get current authenticated user info", {}, async () => {
+    const user = await apis.users.getCurrentUser();
+    const lines = [
+      `**Name:** ${user.firstName} ${user.lastName}`,
+      `**Email:** ${user.email}`,
+      `**ID:** ${user.id}`,
+      `**Active:** ${user.active}`,
+      `**Last Login:** ${user.lastLoginDate ?? "N/A"}`,
+    ];
+    return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+  });
+
+  server.tool("show_users", "List all users in the tenant", {
+    ...paginationParams,
+  }, async ({ offset, limit, search }) => {
+    const users = await apis.users.list();
+    return tableResult(users, [
+      { header: "Name", key: "firstName" },
+      { header: "Email", key: "email" },
+      { header: "Active", key: "active" },
+      { header: "ID", key: "id" },
+    ], "users", { offset, limit, search });
+  });
+
+  server.tool("show_userdetails", "Get user details by ID", {
+    userId: z.string().describe("Anaplan user ID"),
+  }, async ({ userId }) => {
+    const user = await apis.users.get(userId);
+    return { content: [{ type: "text" as const, text: JSON.stringify(user, null, 2) }] };
+  });
+
+  // Task history (polymorphic)
+  server.tool("show_tasks", "List task history for an import, export, process, or action", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+    actionType: z.enum(["imports", "exports", "processes", "actions"]).describe("Type of action"),
+    actionId: z.string().describe("Action ID or name"),
+    ...paginationParams,
+  }, async ({ workspaceId, modelId, actionType, actionId, offset, limit, search }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const resolveMap: Record<string, (wId: string, mId: string, name: string) => Promise<string>> = {
+      imports: (w, m, n) => resolver.resolveImport(w, m, n),
+      exports: (w, m, n) => resolver.resolveExport(w, m, n),
+      processes: (w, m, n) => resolver.resolveProcess(w, m, n),
+      actions: (w, m, n) => resolver.resolveAction(w, m, n),
+    };
+    const aId = await resolveMap[actionType](wId, mId, actionId);
+    const apiMap: Record<string, { listTasks: (w: string, m: string, a: string) => Promise<any[]> }> = {
+      imports: apis.imports,
+      exports: apis.exports,
+      processes: apis.processes,
+      actions: apis.actions,
+    };
+    const tasks = await apiMap[actionType].listTasks(wId, mId, aId);
+    return tableResult(tasks, [
+      { header: "Task ID", key: "taskId" },
+      { header: "State", key: "taskState" },
+      { header: "Created", key: "creationTime" },
+    ], "tasks", { offset, limit, search });
   });
 }
