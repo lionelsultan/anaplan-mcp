@@ -262,7 +262,7 @@ All methods produce a token that is cached in memory and automatically refreshed
 | `read_cells` | Read cell data from a module view<br>`GET /models/{modelId}/views/{viewId}/data?format=v1` |
 | `write_cells` | Write values to specific module cells<br>`POST /models/{modelId}/modules/{moduleId}/data` |
 | `add_list_items` | Add new items to a list<br>`POST .../lists/{listId}/items?action=add` |
-| `update_list_items` | Update existing list items<br>`PUT .../lists/{listId}/items?action=update` |
+| `update_list_items` | Update existing list items<br>`PUT .../lists/{listId}/items` |
 | `delete_list_items` | Delete list items<br>`POST .../lists/{listId}/items?action=delete` |
 
 ## Features

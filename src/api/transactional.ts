@@ -81,7 +81,7 @@ export class TransactionalApi {
 
   async updateListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ id: string; name?: string; code?: string; properties?: Record<string, string> }>) {
     return this.client.put(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items?action=update`,
+      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items`,
       { items }
     );
   }

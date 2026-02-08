@@ -43,12 +43,12 @@ describe("ModelManagementApi", () => {
     expect(mockClient.post).toHaveBeenCalledWith("/workspaces/ws1/models/m1/open");
   });
 
-  it("bulkDelete() calls POST /workspaces/{wId}/bulkDeleteModels with model IDs", async () => {
+  it("bulkDelete() calls POST /workspaces/{wId}/bulkDeleteModels with modelIdsToDelete payload", async () => {
     mockClient.post.mockResolvedValue({ modelsDeleted: 1, bulkDeleteModelsFailures: [] });
     const result = await api.bulkDelete("ws1", ["m1", "m2"]);
     expect(mockClient.post).toHaveBeenCalledWith(
       "/workspaces/ws1/bulkDeleteModels",
-      { models: [{ id: "m1" }, { id: "m2" }] }
+      { modelIdsToDelete: ["m1", "m2"] }
     );
     expect(result.modelsDeleted).toBe(1);
   });

@@ -248,6 +248,49 @@ describe("TransactionalApi", () => {
     });
   });
 
+  describe("list item mutations", () => {
+    it("addListItems() calls POST /lists/{listId}/items?action=add with { items } body", async () => {
+      const client = mockClient();
+      const api = new TransactionalApi(client);
+      const items = [{ name: "North America", code: "NA" }];
+
+      await api.addListItems("ws1", "m1", "list1", items);
+
+      expect(client.post).toHaveBeenCalledWith(
+        "/workspaces/ws1/models/m1/lists/list1/items?action=add",
+        { items }
+      );
+    });
+
+    it("updateListItems() calls PUT /lists/{listId}/items with { items } body", async () => {
+      const client = mockClient();
+      const api = new TransactionalApi(client);
+      const items = [{ id: "item1", name: "Renamed Item", code: "REN" }];
+
+      await api.updateListItems("ws1", "m1", "list1", items);
+
+      expect(client.put).toHaveBeenCalledWith(
+        "/workspaces/ws1/models/m1/lists/list1/items",
+        { items }
+      );
+      const calledPath = (client.put as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      expect(calledPath).not.toContain("action=update");
+    });
+
+    it("deleteListItems() calls POST /lists/{listId}/items?action=delete with { items } body", async () => {
+      const client = mockClient();
+      const api = new TransactionalApi(client);
+      const items = [{ id: "item1" }];
+
+      await api.deleteListItems("ws1", "m1", "list1", items);
+
+      expect(client.post).toHaveBeenCalledWith(
+        "/workspaces/ws1/models/m1/lists/list1/items?action=delete",
+        { items }
+      );
+    });
+  });
+
   describe("getViewMetadata", () => {
     it("calls GET on /models/{modelId}/views/{viewId}", async () => {
       const viewMeta = {

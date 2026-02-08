@@ -20,7 +20,7 @@ export class ModelManagementApi {
   async bulkDelete(workspaceId: string, modelIds: string[]) {
     return this.client.post<any>(
       `/workspaces/${workspaceId}/bulkDeleteModels`,
-      { models: modelIds.map((id) => ({ id })) }
+      { modelIdsToDelete: modelIds }
     );
   }
 }
