@@ -10,5 +10,7 @@ CLAUDE.md
 .mcp.json
 .worktrees/
 
-# Internal plans
+# Internal docs
 docs/plans/
+docs/FUTURE_SCOPE.md
+docs/anaplan_documentation/
