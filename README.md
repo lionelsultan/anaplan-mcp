@@ -16,6 +16,12 @@ Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, an
 
 This server wraps the API in 68 structured tools that AI assistants like Claude can call on your behalf. Explore models, pull data, run actions, and onboard new team members - all by asking in plain English instead of writing API calls or waiting for someone who knows the model.
 
+**For business users:** Stop waiting for someone to pull data or explain how a model works. Ask Claude to show you the numbers, walk you through module structure, or run your regular imports.
+
+**For model builders and consultants:** Analyze model structure, trace formula dependencies, review line item configurations, and identify performance issues - all through conversation instead of clicking through hundreds of modules manually.
+
+**For IT and platform teams:** Standard API access using your existing authentication and permissions. No new credentials, no elevated access. Open source for auditability. Anaplan data is processed by your AI assistant - locally or through your provider's environment depending on your setup.
+
 ## Common Use Cases
 
 **Model Documentation:**
@@ -105,10 +111,9 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 - Keep API credentials secure and out of version control
 
 ### Security Approach
-- Follows Anaplan's AI security principles (zero trust, RBAC, transience)
+- Uses your existing Anaplan authentication and permissions - no elevated access
 - Open source for transparency and auditability
-- Runs locally to avoid cloud data exposure
-- No training on your data; transient context only
+- Anaplan data is processed by your AI assistant - locally or through your provider's environment depending on your setup
 
 ### Limitations
 - `show_modelstatus` endpoint often returns 405 in current tenants
