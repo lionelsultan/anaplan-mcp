@@ -10,6 +10,106 @@ A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that c
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
+## Common Use Cases
+
+**Model Documentation:**
+- "Show me the structure of the Supply Planning model"
+- "List all line items and their formulas in the Revenue module"
+- "What dimensions does the Margin line item use?"
+
+**Data Review:**
+- "Pull the current pricing data for all products"
+- "Show me which list items were recently added"
+- "Read the forecast numbers for Q3 and summarize"
+
+**Impact Analysis:**
+- "What modules use the Product list as a dimension?"
+- "Show all line items that reference Cost Per Unit"
+- "Which views include the Region dimension?"
+
+**Automation:**
+- "Run the monthly demand import and show me the result"
+- "Export sales actuals and save to Downloads"
+- "Add these 50 new products to the master list"
+
+**Onboarding:**
+- "Walk me through the modules in this model"
+- "How is this model structured? What are the key lists?"
+- New team members explore models conversationally instead of waiting for scheduled training
+
+## What It Can and Can't Do
+
+### What it can do
+- Browse workspaces, models, modules, lists, and views
+- Read cell data and list items
+- Write cell values and manage list items (add, update, delete)
+- Run imports, exports, processes, and delete actions
+- Upload and download files
+- Manage models (open, close, delete, set periods and fiscal year)
+- Query users, versions, and task history
+
+### Model Building Limitations
+The Anaplan API does not support:
+- Creating modules or line items programmatically
+- Defining formulas through API
+- Building model structure from scratch
+- Configuring model calendar programmatically
+
+For model building, use Anaplan's UI or wait for Agent Studio capabilities.
+
+## Permissions and Safety
+
+### What the server can do
+
+This server has **full access** to whatever your Anaplan credentials allow. The 68 tools cover both read and write operations:
+
+- **Read-only tools** (safe to use freely): `show_*` tools, `read_cells`, `get_list_items`, `download_file`, `get_action_status`
+- **Write tools** (modify data): `write_cells`, `add_list_items`, `update_list_items`, `delete_list_items`
+- **Action tools** (trigger Anaplan processes): `run_import`, `run_export`, `run_process`, `run_delete`
+- **Admin tools** (model management): `close_model`, `open_model`, `bulk_delete_models`, `set_currentperiod`, `set_fiscalyear`
+
+### Tool approval in Claude Desktop
+
+Claude Desktop prompts you before each tool call. You'll see the tool name and parameters, and can approve or deny. This gives you a chance to review before any action runs. You can also use the "Allow for this chat" option for tools you trust.
+
+### Recommendations
+
+- **Start with read-only.** Ask Claude to explore your workspaces and models before running any write operations. Get comfortable with the tool output first.
+- **Test in a dev workspace.** If you have a non-production Anaplan workspace, use that while getting familiar with the tools.
+- **Use least-privilege credentials.** If your Anaplan admin can create a service account with limited workspace access, use that instead of your personal admin account.
+- **Review before confirming write operations.** When Claude proposes to run an import, write cells, or delete items, read the parameters carefully before approving.
+- **Exports and imports are asynchronous.** The server polls until they complete (up to 5 minutes). You can cancel a running task with `cancel_task` if needed.
+
+## Disclaimers
+
+### Official API Usage
+- This project uses the [Anaplan Integration API v2](https://anaplan.docs.apiary.io/)
+- All operations go through Anaplan's official, documented endpoints
+- No reverse engineering or undocumented APIs
+
+### Not Affiliated with Anaplan
+- This is an **unofficial, personal project**
+- Not affiliated with, endorsed by, or supported by Anaplan
+- For official Anaplan AI capabilities, see [CoModeler](https://www.anaplan.com/platform/anaplan-comodeler/) and [Agent Studio](https://www.anaplan.com/platform/intelligence/)
+
+### Your Responsibility
+- Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/)
+- Always test in non-production environments first
+- Review AI-generated actions before confirming write operations
+- Keep API credentials secure and out of version control
+
+### Security Approach
+- Follows Anaplan's AI security principles (zero trust, RBAC, transience)
+- Open source for transparency and auditability
+- Runs locally to avoid cloud data exposure
+- No training on your data; transient context only
+
+### Limitations
+- `show_modelstatus` endpoint often returns 405 in current tenants
+- Write operations can cause irreversible data loss - review carefully
+- No warranty or support provided
+- Use at your own risk
+
 ## Prerequisites
 
 - **Node.js 18+** - [download here](https://nodejs.org/)
@@ -173,56 +273,6 @@ You only need one set of credentials. If multiple are configured, the server pic
 
 > **Security note:** Never commit credentials to version control. The `"env"` block in your MCP client config is local to your machine and is not part of this repository.
 
-## Permissions and Safety
-
-### What the server can do
-
-This server has **full access** to whatever your Anaplan credentials allow. The 68 tools cover both read and write operations:
-
-- **Read-only tools** (safe to use freely): `show_*` tools, `read_cells`, `get_list_items`, `download_file`, `get_action_status`
-- **Write tools** (modify data): `write_cells`, `add_list_items`, `update_list_items`, `delete_list_items`
-- **Action tools** (trigger Anaplan processes): `run_import`, `run_export`, `run_process`, `run_delete`
-- **Admin tools** (model management): `close_model`, `open_model`, `bulk_delete_models`, `set_currentperiod`, `set_fiscalyear`
-
-### Tool approval in Claude Desktop
-
-Claude Desktop prompts you before each tool call. You'll see the tool name and parameters, and can approve or deny. This gives you a chance to review before any action runs. You can also use the "Allow for this chat" option for tools you trust.
-
-### Recommendations
-
-- **Start with read-only.** Ask Claude to explore your workspaces and models before running any write operations. Get comfortable with the tool output first.
-- **Test in a dev workspace.** If you have a non-production Anaplan workspace, use that while getting familiar with the tools.
-- **Use least-privilege credentials.** If your Anaplan admin can create a service account with limited workspace access, use that instead of your personal admin account.
-- **Review before confirming write operations.** When Claude proposes to run an import, write cells, or delete items, read the parameters carefully before approving.
-- **Exports and imports are asynchronous.** The server polls until they complete (up to 5 minutes). You can cancel a running task with `cancel_task` if needed.
-
-## Common Use Cases
-
-**Model Documentation:**
-- "Show me the structure of the Supply Planning model"
-- "List all line items and their formulas in the Revenue module"
-- "What dimensions does the Margin line item use?"
-
-**Data Review:**
-- "Pull the current pricing data for all products"
-- "Show me which list items were recently added"
-- "Read the forecast numbers for Q3 and summarize"
-
-**Impact Analysis:**
-- "What modules use the Product list as a dimension?"
-- "Show all line items that reference Cost Per Unit"
-- "Which views include the Region dimension?"
-
-**Automation:**
-- "Run the monthly demand import and show me the result"
-- "Export sales actuals and save to Downloads"
-- "Add these 50 new products to the master list"
-
-**Onboarding:**
-- "Walk me through the modules in this model"
-- "How is this model structured? What are the key lists?"
-- New team members explore models conversationally instead of waiting for scheduled training
-
 ## Tools
 
 ### Model Exploration (37 tools)
@@ -324,45 +374,6 @@ Three layers:
 1. **Auth layer** - pluggable providers behind a common `AuthProvider` interface. The `AuthManager` selects the right provider from env vars and handles token lifecycle.
 2. **API layer** - `AnaplanClient` handles all HTTP communication with the Anaplan API. 16 domain wrappers provide typed methods for each endpoint. Auto-paginates list endpoints using Anaplan's `meta.paging` metadata.
 3. **Tools layer** - registers MCP tools on the server with zod schemas for input validation. Each tool delegates to the appropriate API wrapper and formats results.
-
-## Disclaimers
-
-### Official API Usage
-- This project uses the [Anaplan Integration API v2](https://anaplan.docs.apiary.io/)
-- All operations go through Anaplan's official, documented endpoints
-- No reverse engineering or undocumented APIs
-
-### Not Affiliated with Anaplan
-- This is an **unofficial, personal project**
-- Not affiliated with, endorsed by, or supported by Anaplan
-- For official Anaplan AI capabilities, see [CoModeler](https://www.anaplan.com/platform/anaplan-comodeler/) and [Agent Studio](https://www.anaplan.com/platform/intelligence/)
-
-### Your Responsibility
-- Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/)
-- Always test in non-production environments first
-- Review AI-generated actions before confirming write operations
-- Keep API credentials secure and out of version control
-
-### Security Approach
-- Follows Anaplan's AI security principles (zero trust, RBAC, transience)
-- Open source for transparency and auditability
-- Runs locally to avoid cloud data exposure
-- No training on your data; transient context only
-
-### Limitations
-- `show_modelstatus` endpoint often returns 405 in current tenants
-- Write operations can cause irreversible data loss - review carefully
-- No warranty or support provided
-- Use at your own risk
-
-### Model Building Limitations
-The Anaplan API does not support:
-- Creating modules or line items programmatically
-- Defining formulas through API
-- Building model structure from scratch
-- Configuring model calendar programmatically
-
-For model building, use Anaplan's UI or wait for Agent Studio capabilities.
 
 ## License
 
