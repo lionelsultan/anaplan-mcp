@@ -6,7 +6,7 @@
 
 # Anaplan MCP
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse Anaplan workspaces, read and write model data, run imports/exports, manage list items, and administer models - all through 68 structured tools.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2 - following the same security principles Anaplan uses for their own AI capabilities. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 68 structured tools, all while respecting your permissions and governance policies.
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
@@ -147,9 +147,9 @@ Set your Anaplan credentials as environment variables in your shell profile (`.b
 
 Any MCP-compatible client that supports stdio transport can connect. The server expects to be launched as a subprocess with stdin/stdout for communication. Pass Anaplan credentials via environment variables.
 
-### Browser-based AI (claude.ai, ChatGPT, Gemini)
+### Browser-based AI (claude.ai, ChatGPT)
 
-MCP servers run as local processes on your machine. Browser-based AI products cannot launch local processes, so they **cannot** connect to this server. You need a desktop application like Claude Desktop or Claude Code.
+Both [claude.ai](https://claude.ai) and [ChatGPT](https://chatgpt.com) now support remote MCP connectors. However, this server uses **stdio transport** (it runs as a local subprocess), so it cannot be connected directly from a browser. To use it from claude.ai or ChatGPT, you need to wrap it behind a remote MCP proxy. See [Remote MCP Setup Guide](docs/remote-mcp-setup.md) for step-by-step instructions. For local use, Claude Desktop or Claude Code are the simplest options.
 
 ## Configuration
 
@@ -195,6 +195,33 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 - **Use least-privilege credentials.** If your Anaplan admin can create a service account with limited workspace access, use that instead of your personal admin account.
 - **Review before confirming write operations.** When Claude proposes to run an import, write cells, or delete items, read the parameters carefully before approving.
 - **Exports and imports are asynchronous.** The server polls until they complete (up to 5 minutes). You can cancel a running task with `cancel_task` if needed.
+
+## Common Use Cases
+
+**Model Documentation:**
+- "Show me the structure of the Supply Planning model"
+- "List all line items and their formulas in the Revenue module"
+- "What dimensions does the Margin line item use?"
+
+**Data Review:**
+- "Pull the current pricing data for all products"
+- "Show me which list items were recently added"
+- "Read the forecast numbers for Q3 and summarize"
+
+**Impact Analysis:**
+- "What modules use the Product list as a dimension?"
+- "Show all line items that reference Cost Per Unit"
+- "Which views include the Region dimension?"
+
+**Automation:**
+- "Run the monthly demand import and show me the result"
+- "Export sales actuals and save to Downloads"
+- "Add these 50 new products to the master list"
+
+**Onboarding:**
+- "Walk me through the modules in this model"
+- "How is this model structured? What are the key lists?"
+- New team members explore models conversationally instead of waiting for scheduled training
 
 ## Tools
 
@@ -336,16 +363,54 @@ Three layers:
 
 ## Disclaimers
 
-- This project is built against the [Anaplan Integration API v2](https://anaplan.docs.apiary.io/), which served as the primary API reference
-- `show_modelstatus` uses `POST /workspaces/{workspaceId}/models/{modelId}/status`; this endpoint is present in some historical docs but often returns `405 Method Not Allowed` in current tenants, so treat it as unsupported unless your tenant confirms availability
-- This is a personal project, not affiliated with or endorsed by Anaplan
-- Users are responsible for compliance with Anaplan's Terms of Service
+### Official API Usage
+- This project uses the [Anaplan Integration API v2](https://anaplan.docs.apiary.io/)
+- All operations go through Anaplan's official, documented endpoints
+- No reverse engineering or undocumented APIs
+
+### Not Affiliated with Anaplan
+- This is an **unofficial, community-maintained project**
+- Not affiliated with, endorsed by, or supported by Anaplan
+- For official Anaplan AI capabilities, see [CoModeler](https://www.anaplan.com/platform/anaplan-comodeler/) and [Agent Studio](https://www.anaplan.com/platform/intelligence/)
+
+### Your Responsibility
+- Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/)
 - Always test in non-production environments first
-- Write operations (imports, cell writes, list mutations, delete actions) can cause irreversible data loss - review AI-generated actions before confirming
-- API credentials are passed via environment variables - keep them out of version control
-- No support or warranties provided
+- Review AI-generated actions before confirming write operations
+- Keep API credentials secure and out of version control
+
+### Security Approach
+- Follows Anaplan's AI security principles (zero trust, RBAC, transience)
+- Open source for transparency and auditability
+- Runs locally to avoid cloud data exposure
+- No training on your data; transient context only
+
+### Limitations
+- `show_modelstatus` endpoint often returns 405 in current tenants
+- Write operations can cause irreversible data loss - review carefully
+- No warranty or support provided
 - Use at your own risk
+
+### Model Building Limitations
+The Anaplan API does not support:
+- Creating modules or line items programmatically
+- Defining formulas through API
+- Building model structure from scratch
+- Configuring model calendar programmatically
+
+For model building, use Anaplan's UI or wait for Agent Studio capabilities.
 
 ## License
 
-MIT - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) file for details.
+
+**What this license covers:**
+- The MCP server code in this repository
+- Your right to use, modify, and distribute this code
+
+**What this license does NOT cover:**
+- Anaplan's Integration API (separate terms)
+- Access to Anaplan's service (requires valid subscription)
+- Anaplan's trademarks or intellectual property
+
+**Use of Anaplan name:** This project uses "Anaplan" under nominative fair use to accurately describe what it connects to. This does not imply endorsement or affiliation.
