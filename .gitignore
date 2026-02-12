@@ -11,6 +11,10 @@ CLAUDE.md
 .mcp.json
 .worktrees/
 
+# Skills (keep folder, ignore contents)
+src/skills/*
+!src/skills/.gitkeep
+
 # Internal docs
 docs/plans/
 docs/FUTURE_SCOPE.md
