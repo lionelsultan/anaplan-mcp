@@ -49,7 +49,7 @@ export function createServer(): McpServer {
 
   const server = new McpServer({
     name: "anaplan-mcp",
-    version: "1.0.0",
+    version: "1.2.0",
   });
 
   registerExplorationTools(server, {
