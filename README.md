@@ -267,7 +267,13 @@ Quit Claude Desktop completely (right-click the system tray icon and quit — do
 
 ### Connect to Claude Code
 
-The easiest approach is to add a `.mcp.json` file in the project root:
+The repo includes a `.mcp.json.example` file. Copy it and fill in your credentials:
+
+```bash
+cp .mcp.json.example .mcp.json
+```
+
+Then edit `.mcp.json` with your credentials:
 
 ```json
 {
@@ -276,20 +282,16 @@ The easiest approach is to add a `.mcp.json` file in the project root:
       "type": "stdio",
       "command": "node",
       "args": ["dist/index.js"],
-      "envFile": "mcpServers.anaplan.env"
+      "env": {
+        "ANAPLAN_USERNAME": "user@company.com",
+        "ANAPLAN_PASSWORD": "your-password"
+      }
     }
   }
 }
 ```
 
-Then create `mcpServers.anaplan.env` with your credentials:
-
-```
-ANAPLAN_USERNAME=user@company.com
-ANAPLAN_PASSWORD=your-password
-```
-
-> **Security note:** Both `.mcp.json` and `mcpServers.anaplan.env` are gitignored by default. Never commit credentials to version control.
+> **Security note:** `.mcp.json` is gitignored by default. Never commit credentials to version control.
 
 Alternatively, use the CLI or edit `~/.claude/mcp_settings.json` directly:
 
@@ -324,7 +326,7 @@ You only need one set of credentials. If multiple are configured, the server pic
 
 ### Where to set environment variables
 
-- **Env file (Claude Code):** Use `"envFile"` in `.mcp.json` pointing to a local env file (recommended - keeps credentials out of JSON config)
+- **Claude Code config:** Use the `"env"` block in `.mcp.json` (file is gitignored by default)
 - **Claude Desktop config:** Use the `"env"` block in the JSON config (keeps credentials scoped to the server)
 - **Shell profile:** Export in `.bashrc` / `.zshrc` for Claude Code CLI usage
 - **System environment:** Set at the OS level if you prefer
@@ -432,6 +434,8 @@ Three layers:
 1. **Auth layer** - pluggable providers behind a common `AuthProvider` interface. The `AuthManager` selects the right provider from env vars and handles token lifecycle.
 2. **API layer** - `AnaplanClient` handles all HTTP communication with the Anaplan API. 16 domain wrappers provide typed methods for each endpoint. Auto-paginates list endpoints using Anaplan's `meta.paging` metadata.
 3. **Tools layer** - registers MCP tools on the server with zod schemas for input validation. Each tool delegates to the appropriate API wrapper and formats results.
+
+For detailed runtime diagrams (request flow, trust boundary, subsystem map) see [docs/architecture/overview.md](docs/architecture/overview.md).
 
 ## License
 
