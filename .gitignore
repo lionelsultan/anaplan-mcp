@@ -18,6 +18,7 @@ mcpServers.anaplan.env
 # Internal planning docs
 docs/plans/
 
-# Skills (personal, not shared) - keep example for reference
+# Skills (personal, not shared) - keep example and reference PDFs
 skills/*
 !skills/example.md
+!skills/*.pdf
