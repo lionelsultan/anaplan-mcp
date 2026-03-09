@@ -102,16 +102,16 @@ If the file doesn't exist yet, create it with `{}` as the contents.
 
 **Step 2: Add the Anaplan server**
 
-Pick the auth method that matches your Anaplan setup:
+Replace `<path>` with the absolute path to your cloned repo (e.g. `/Users/you/anaplan-mcp` on macOS/Linux or `C:/Users/you/anaplan-mcp` on Windows — always use forward slashes).
 
-**Basic auth (username/password):**
+**Basic auth:**
 
 ```json
 {
   "mcpServers": {
     "anaplan": {
       "command": "node",
-      "args": ["C:/Users/you/anaplan-mcp/dist/index.js"],
+      "args": ["<path>/dist/index.js"],
       "env": {
         "ANAPLAN_USERNAME": "user@company.com",
         "ANAPLAN_PASSWORD": "your-password"
@@ -120,85 +120,36 @@ Pick the auth method that matches your Anaplan setup:
   }
 }
 ```
+
+For other auth methods, use the same structure with a different `env` block:
 
 **Certificate auth:**
-
 ```json
-{
-  "mcpServers": {
-    "anaplan": {
-      "command": "node",
-      "args": ["C:/Users/you/anaplan-mcp/dist/index.js"],
-      "env": {
-        "ANAPLAN_CERTIFICATE_PATH": "C:/path/to/your/cert.pem",
-        "ANAPLAN_PRIVATE_KEY_PATH": "C:/path/to/your/key.pem",
-        "ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT": "v2"
-      }
-    }
-  }
+"env": {
+  "ANAPLAN_CERTIFICATE_PATH": "/path/to/cert.pem",
+  "ANAPLAN_PRIVATE_KEY_PATH": "/path/to/key.pem"
+}
+```
+`ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` can be added optionally; defaults to `v2`. Set `v1` only for legacy tenants.
+
+**OAuth2 (device grant) — interactive, opens browser to authorize:**
+```json
+"env": {
+  "ANAPLAN_CLIENT_ID": "your-client-id"
 }
 ```
 
-`ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` is optional and defaults to `v2` (recommended). Set `v1` only if your tenant still requires legacy certificate payload format.
-
-**OAuth2 (device grant) - interactive, prompts user to authorize in browser:**
-
+**OAuth2 (authorization code) — non-interactive:**
 ```json
-{
-  "mcpServers": {
-    "anaplan": {
-      "command": "node",
-      "args": ["C:/Users/you/anaplan-mcp/dist/index.js"],
-      "env": {
-        "ANAPLAN_CLIENT_ID": "your-client-id"
-      }
-    }
-  }
+"env": {
+  "ANAPLAN_CLIENT_ID": "your-client-id",
+  "ANAPLAN_CLIENT_SECRET": "your-client-secret",
+  "ANAPLAN_OAUTH_AUTHORIZATION_CODE": "code-from-redirect",
+  "ANAPLAN_OAUTH_REDIRECT_URI": "https://your-app.com/callback"
 }
 ```
 
-**OAuth2 (authorization code grant) - non-interactive, uses pre-obtained code:**
-
-```json
-{
-  "mcpServers": {
-    "anaplan": {
-      "command": "node",
-      "args": ["C:/Users/you/anaplan-mcp/dist/index.js"],
-      "env": {
-        "ANAPLAN_CLIENT_ID": "your-client-id",
-        "ANAPLAN_CLIENT_SECRET": "your-client-secret",
-        "ANAPLAN_OAUTH_AUTHORIZATION_CODE": "code-from-redirect",
-        "ANAPLAN_OAUTH_REDIRECT_URI": "https://your-app.com/callback"
-      }
-    }
-  }
-}
-```
-
-> **Important:** Replace the path in `args` with the actual absolute path where you cloned the repo.
-> - **macOS/Linux:** `/Users/you/anaplan-mcp/dist/index.js`
-> - **Windows:** Use **forward slashes** — `C:/Users/you/anaplan-mcp/dist/index.js` (not backslashes)
-
-If your config file already has content (e.g. a `preferences` key), the final result should look like one merged object:
-
-```json
-{
-  "preferences": {
-    "...": "your existing preferences"
-  },
-  "mcpServers": {
-    "anaplan": {
-      "command": "node",
-      "args": ["C:/Users/you/anaplan-mcp/dist/index.js"],
-      "env": {
-        "ANAPLAN_USERNAME": "user@company.com",
-        "ANAPLAN_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
+If your config file already has content, add `mcpServers` inside the existing top-level object — don't create a second `{}` block.
 
 **Step 3: Restart Claude Desktop**
 
