@@ -18,8 +18,8 @@ mcpServers.anaplan.env
 # Internal planning docs
 docs/plans/
 
-# Example drafts and work-in-progress
-examples/drafts/
+# Local examples (not shared)
+examples/local/
 
 # Skills (personal, not shared) - keep example and reference PDFs
 skills/*
