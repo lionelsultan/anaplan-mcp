@@ -7,7 +7,7 @@
 # Anaplan MCP
 ### Unofficial MCP server for Anaplan
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2 - following the same security principles Anaplan uses for their own AI capabilities. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 68 structured tools, all while respecting your permissions and governance policies.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 68 structured tools, using your existing Anaplan credentials and permissions.
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client.
 
@@ -48,7 +48,7 @@ This server wraps the API in 68 structured tools that AI assistants like Claude 
 **Onboarding:**
 - "Walk me through the modules in this model"
 - "How is this model structured? What are the key lists?"
-- New team members explore models conversationally instead of waiting for scheduled training
+- "What changed in this model since last quarter?"
 
 ## What It Can and Can't Do
 
@@ -68,7 +68,7 @@ The Anaplan API does not support:
 - Building model structure from scratch
 - Configuring model calendar programmatically
 
-For model building, use Anaplan's UI or wait for Agent Studio capabilities.
+For model building, use Anaplan's UI or Agent Studio.
 
 ## Permissions and Safety
 
@@ -95,32 +95,7 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 
 ## Disclaimers
 
-### Official API Usage
-- This project uses the [Anaplan Integration API v2](https://anaplan.docs.apiary.io/)
-- All operations go through Anaplan's official, documented endpoints
-- No reverse engineering or undocumented APIs
-
-### Not Affiliated with Anaplan
-- This is an **unofficial, personal project**
-- Not affiliated with, endorsed by, or supported by Anaplan
-- For official Anaplan AI capabilities, see [CoModeler](https://www.anaplan.com/platform/anaplan-comodeler/) and [Agent Studio](https://www.anaplan.com/platform/intelligence/)
-
-### Your Responsibility
-- Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/)
-- Always test in non-production environments first
-- Review AI-generated actions before confirming write operations
-- Keep API credentials secure and out of version control
-
-### Security Approach
-- Uses your existing Anaplan authentication and permissions - no elevated access
-- Open source for transparency and auditability
-- Anaplan data is processed by your AI assistant - locally or through your provider's environment depending on your setup
-
-### Limitations
-- `show_modelstatus` endpoint often returns 405 in current tenants
-- Write operations can cause irreversible data loss - review carefully
-- No warranty or support provided
-- Use at your own risk
+Unofficial personal project - not affiliated with, endorsed by, or supported by Anaplan. Uses the official [Anaplan Integration API v2](https://anaplan.docs.apiary.io/) - no undocumented endpoints. Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/). No warranty provided; use at your own risk.
 
 ## Prerequisites
 
@@ -452,19 +427,4 @@ Skills are gitignored by default (personal workflows vary), with only the exampl
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-**What this license covers:**
-- The MCP server code in this repository
-- Your right to use, modify, and distribute this code
-
-**What this license does NOT cover:**
-- Anaplan's Integration API (separate terms)
-- Access to Anaplan's service (requires valid subscription)
-- Anaplan's trademarks or intellectual property
-
-**Use of Anaplan name:** This project uses "Anaplan" under nominative fair use to accurately describe what it connects to. This does not imply endorsement or affiliation.
-
----
-
-*This is an unofficial project. Not affiliated with, endorsed by, or supported by Anaplan.*
+MIT - see [LICENSE](LICENSE) file for details. Covers the code in this repository only; Anaplan's API and service are subject to their own terms.
