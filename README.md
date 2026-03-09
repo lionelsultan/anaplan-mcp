@@ -70,33 +70,6 @@ The Anaplan API does not support:
 
 For model building, use Anaplan's UI or Agent Studio.
 
-## Permissions and Safety
-
-### What the server can do
-
-This server has **full access** to whatever your Anaplan credentials allow. The 68 tools cover both read and write operations:
-
-- **Read-only tools** (safe to use freely): `show_*` tools, `read_cells`, `get_list_items`, `download_file`, `get_action_status`
-- **Write tools** (modify data): `write_cells`, `add_list_items`, `update_list_items`, `delete_list_items`
-- **Action tools** (trigger Anaplan processes): `run_import`, `run_export`, `run_process`, `run_delete`
-- **Admin tools** (model management): `close_model`, `open_model`, `bulk_delete_models`, `set_currentperiod`, `set_fiscalyear`
-
-### Tool approval in Claude Desktop
-
-Claude Desktop prompts you before each tool call. You'll see the tool name and parameters, and can approve or deny. This gives you a chance to review before any action runs. You can also use the "Allow for this chat" option for tools you trust.
-
-### Recommendations
-
-- **Start with read-only.** Ask Claude to explore your workspaces and models before running any write operations. Get comfortable with the tool output first.
-- **Test in a dev workspace.** If you have a non-production Anaplan workspace, use that while getting familiar with the tools.
-- **Use least-privilege credentials.** If your Anaplan admin can create a service account with limited workspace access, use that instead of your personal admin account.
-- **Review before confirming write operations.** When Claude proposes to run an import, write cells, or delete items, read the parameters carefully before approving.
-- **Exports and imports are asynchronous.** The server polls until they complete (up to 5 minutes). You can cancel a running task with `cancel_task` if needed.
-
-## Disclaimers
-
-Unofficial personal project - not affiliated with, endorsed by, or supported by Anaplan. Uses the official [Anaplan Integration API v2](https://anaplan.docs.apiary.io/) - no undocumented endpoints. Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/). No warranty provided; use at your own risk.
-
 ## Prerequisites
 
 - **Node.js 18+** - [download here](https://nodejs.org/)
@@ -307,6 +280,29 @@ You only need one set of credentials. If multiple are configured, the server pic
 
 > **Security note:** Never commit credentials to version control. Env files and MCP config files are gitignored by default in this repo.
 
+## Permissions and Safety
+
+### What the server can do
+
+This server has **full access** to whatever your Anaplan credentials allow. The 68 tools cover both read and write operations:
+
+- **Read-only tools** (safe to use freely): `show_*` tools, `read_cells`, `get_list_items`, `download_file`, `get_action_status`
+- **Write tools** (modify data): `write_cells`, `add_list_items`, `update_list_items`, `delete_list_items`
+- **Action tools** (trigger Anaplan processes): `run_import`, `run_export`, `run_process`, `run_delete`
+- **Admin tools** (model management): `close_model`, `open_model`, `bulk_delete_models`, `set_currentperiod`, `set_fiscalyear`
+
+### Tool approval in Claude Desktop
+
+Claude Desktop prompts you before each tool call. You'll see the tool name and parameters, and can approve or deny. This gives you a chance to review before any action runs. You can also use the "Allow for this chat" option for tools you trust.
+
+### Recommendations
+
+- **Start with read-only.** Ask Claude to explore your workspaces and models before running any write operations. Get comfortable with the tool output first.
+- **Test in a dev workspace.** If you have a non-production Anaplan workspace, use that while getting familiar with the tools.
+- **Use least-privilege credentials.** If your Anaplan admin can create a service account with limited workspace access, use that instead of your personal admin account.
+- **Review before confirming write operations.** When Claude proposes to run an import, write cells, or delete items, read the parameters carefully before approving.
+- **Exports and imports are asynchronous.** The server polls until they complete (up to 5 minutes). You can cancel a running task with `cancel_task` if needed.
+
 ## Tools
 
 ### Model Exploration (37 tools)
@@ -424,6 +420,10 @@ The `skills/` folder holds Claude Code project-level skills - reusable instructi
 A template is provided at [`skills/example.md`](skills/example.md). Copy it, rename it, and fill in your instructions. Claude Code will pick it up as a skill available in this project.
 
 Skills are gitignored by default (personal workflows vary), with only the example tracked. Add your own without worrying about committing them.
+
+## Disclaimers
+
+Unofficial personal project - not affiliated with, endorsed by, or supported by Anaplan. Uses the official [Anaplan Integration API v2](https://anaplan.docs.apiary.io/) - no undocumented endpoints. Users are responsible for compliance with [Anaplan's Terms of Service](https://www.anaplan.com/terms/). No warranty provided; use at your own risk.
 
 ## License
 
