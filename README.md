@@ -437,6 +437,14 @@ Three layers:
 
 For detailed runtime diagrams (request flow, trust boundary, subsystem map) see [docs/architecture/overview.md](docs/architecture/overview.md).
 
+## Custom Skills
+
+The `skills/` folder holds Claude Code project-level skills - reusable instruction sets that the AI assistant loads automatically during your session.
+
+A template is provided at [`skills/example.md`](skills/example.md). Copy it, rename it, and fill in your instructions. Claude Code will pick it up as a skill available in this project.
+
+Skills are gitignored by default (personal workflows vary), with only the example tracked. Add your own without worrying about committing them.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
