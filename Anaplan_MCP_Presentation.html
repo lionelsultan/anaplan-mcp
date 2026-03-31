@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anaplan MCP — Lara Srinath</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:  #81B900;
+  --dark:   #1C293B;
+  --mid:    #293E52;
+  --deep:   #141E2C;
+  --teal:   #00BF6F;
+  --blue:   #008CCC;
+  --red:    #D94F4F;
+  --white:  #FFFFFF;
+  --subtle: #CCD8E0;
+  --faint:  #8AAABB;
+  --light:  #F4F6F8;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width:100%; height:100%; overflow:hidden; background:var(--dark); font-family:'Plus Jakarta Sans',sans-serif; cursor:none; }
+.cursor      { position:fixed; z-index:9999; width:10px; height:10px; background:var(--green); border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); }
+.cursor-ring { position:fixed; z-index:9998; width:34px; height:34px; border:1.5px solid rgba(129,185,0,.45); border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); }
+.deck { position:relative; width:100vw; height:100vh; }
+.slide { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; pointer-events:none; transform:translateX(50px); transition:opacity .5s cubic-bezier(.4,0,.2,1), transform .5s cubic-bezier(.4,0,.2,1); overflow:hidden; }
+.slide.active { opacity:1; pointer-events:auto; transform:none; }
+.slide.exit   { opacity:0; transform:translateX(-50px); pointer-events:none; }
+#progress-bar { position:fixed; top:0; left:0; z-index:200; height:3px; background:var(--green); transition:width .4s ease; box-shadow:0 0 10px var(--green); }
+#counter      { position:fixed; bottom:26px; right:34px; z-index:200; font-family:'Unbounded',sans-serif; font-size:10px; color:var(--faint); letter-spacing:.1em; }
+#counter span { color:var(--green); }
+.nav-btn { position:fixed; bottom:22px; z-index:200; background:none; border:1px solid rgba(129,185,0,.25); color:var(--faint); width:36px; height:36px; border-radius:50%; cursor:none; font-size:15px; display:flex; align-items:center; justify-content:center; transition:border-color .2s,color .2s,background .2s; }
+.nav-btn:hover { border-color:var(--green); color:var(--green); background:rgba(129,185,0,.08); }
+#btn-prev { left:34px; } #btn-next { left:78px; }
+.rail { position:absolute; left:0; top:0; width:5px; height:100%; background:var(--green); box-shadow:0 0 20px rgba(129,185,0,.35); }
+.hdr { padding:3.2vh 5.5vw 2.2vh 5.5vw; border-bottom:1px solid rgba(129,185,0,.1); flex-shrink:0; }
+.hdr .lbl { font-size:.6vw; letter-spacing:.25em; text-transform:uppercase; color:var(--green); margin-bottom:.3vh; font-weight:500; }
+.hdr h2 { font-family:'Unbounded',sans-serif; font-size:2.1vw; font-weight:700; letter-spacing:-.02em; line-height:1.1; color:var(--white); }
+.hdr .sub { font-size:.82vw; color:var(--faint); margin-top:.3vh; }
+.hdr.light h2 { color:var(--dark); } .hdr.light .sub { color:#6A7F8E; }
+.body { flex:1; padding:2.2vh 5.5vw 2.8vh 5.5vw; display:flex; flex-direction:column; overflow:hidden; }
+.mono { font-family:'JetBrains Mono',monospace; font-size:.75vw; color:var(--teal); background:rgba(0,191,111,.08); padding:2px 6px; border-radius:3px; }
+.tag  { display:inline-block; font-size:.6vw; font-weight:600; border:1px solid rgba(129,185,0,.4); color:var(--green); padding:4px 10px; border-radius:2px; letter-spacing:.1em; text-transform:uppercase; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+.slide.active > * { animation:fadeUp .45s ease forwards; opacity:0; }
+.slide.active > *:nth-child(1) { animation-delay:.04s; }
+.slide.active > *:nth-child(2) { animation-delay:.11s; }
+.slide.active > *:nth-child(3) { animation-delay:.18s; }
+.slide.active > *:nth-child(4) { animation-delay:.25s; }
+
+/* S1 TITLE */
+.s1 { background:var(--dark); justify-content:center; }
+.s1-noise { position:absolute; inset:0; background-image:radial-gradient(ellipse 65% 55% at 78% 50%,rgba(129,185,0,.08) 0%,transparent 70%),radial-gradient(ellipse 35% 35% at 18% 80%,rgba(0,140,204,.05) 0%,transparent 60%); }
+.s1-grid  { position:absolute; inset:0; background-image:linear-gradient(rgba(129,185,0,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(129,185,0,.03) 1px,transparent 1px); background-size:55px 55px; }
+.s1-blob  { position:absolute; right:4vw; top:50%; transform:translateY(-50%); width:36vw; height:36vw; border-radius:50%; background:conic-gradient(from 200deg,var(--green) 0deg,var(--teal) 90deg,transparent 200deg); opacity:.1; filter:blur(2px); }
+.s1-ring  { position:absolute; right:7vw; top:50%; transform:translateY(-50%); width:30vw; height:30vw; border-radius:50%; border:1px solid rgba(129,185,0,.16); }
+.s1-ring2 { position:absolute; right:10vw; top:50%; transform:translateY(-50%); width:24vw; height:24vw; border-radius:50%; border:1px solid rgba(129,185,0,.09); }
+.s1-badge { position:absolute; right:15.5vw; top:50%; transform:translate(50%,-50%); width:13vw; height:13vw; border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:3px; }
+.s1-badge .bn { font-family:'Unbounded',sans-serif; font-size:2vw; font-weight:900; color:var(--dark); letter-spacing:-.02em; }
+.s1-badge .bs { font-size:.6vw; color:rgba(28,41,59,.6); letter-spacing:.15em; text-transform:uppercase; }
+.s1-content { position:relative; z-index:2; padding-left:6.5vw; max-width:55vw; }
+.s1-eyebrow { font-size:.68vw; letter-spacing:.22em; text-transform:uppercase; color:var(--green); margin-bottom:1.4vh; font-weight:500; }
+.s1-title { font-family:'Unbounded',sans-serif; font-size:6vw; font-weight:900; line-height:1; letter-spacing:-.03em; color:var(--white); margin-bottom:.7vh; }
+.s1-title em { color:var(--green); font-style:normal; display:block; }
+.s1-sub { font-size:1.15vw; color:var(--subtle); font-weight:300; line-height:1.55; margin-bottom:3vh; max-width:42vw; }
+.s1-tags { display:flex; gap:10px; flex-wrap:wrap; }
+.s1-presenter { position:absolute; bottom:3.5vh; left:6.5vw; font-size:.72vw; color:var(--faint); }
+.s1-presenter strong { color:var(--white); font-weight:500; }
+
+/* S2 THE GAP */
+.gap-headline { padding:1.5vh 0 .4vh; font-family:'Unbounded',sans-serif; font-size:1.3vw; font-weight:700; color:var(--white); line-height:1.3; max-width:72%; }
+.gap-headline em { color:var(--green); font-style:normal; }
+.gap-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; flex:1; margin-top:1.2vh; }
+.gap-left  { display:flex; flex-direction:column; gap:10px; }
+.gap-void  { flex:1; background:rgba(217,79,79,.04); border:1px solid rgba(217,79,79,.18); border-left:4px solid var(--red); padding:18px 18px; display:flex; flex-direction:column; gap:10px; }
+.gap-void .gv-title { font-family:'Unbounded',sans-serif; font-size:.78vw; font-weight:700; color:#E88080; }
+.gap-void .gv-list  { display:flex; flex-direction:column; gap:6px; }
+.gap-void .gv-item  { font-size:.73vw; color:var(--subtle); line-height:1.45; padding-left:14px; position:relative; }
+.gap-void .gv-item::before { content:'x'; position:absolute; left:0; color:#E88080; font-weight:700; font-size:.7vw; }
+.gap-built { padding:16px 18px; background:rgba(129,185,0,.07); border:1px solid rgba(129,185,0,.18); border-left:4px solid var(--green); }
+.gap-built .gb-title { font-family:'Unbounded',sans-serif; font-size:.76vw; font-weight:700; color:var(--green); margin-bottom:5px; }
+.gap-built .gb-text  { font-size:.74vw; color:var(--subtle); line-height:1.5; }
+.gap-right { display:flex; flex-direction:column; gap:8px; }
+.gap-right .gm-title { font-size:.62vw; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); }
+.gap-step  { padding:9px 13px; background:rgba(255,255,255,.02); border-left:2px solid rgba(217,79,79,.35); font-size:.72vw; color:var(--subtle); line-height:1.4; }
+.gap-step strong { display:block; color:var(--white); font-size:.74vw; margin-bottom:2px; }
+.gap-answer { padding:13px 16px; background:rgba(129,185,0,.1); border-left:3px solid var(--green); font-size:.83vw; color:var(--green); font-weight:600; margin-top:auto; }
+
+/* S3 WHAT IS MCP */
+.mcp-row { display:grid; grid-template-columns:1fr 1fr; gap:18px; flex:1; margin-top:1.8vh; }
+.mcp-left { display:flex; flex-direction:column; gap:10px; }
+.mcp-def  { padding:14px 16px; background:rgba(129,185,0,.06); border-left:3px solid var(--green); font-size:.8vw; color:var(--subtle); line-height:1.6; }
+.mcp-def strong { color:var(--white); }
+.mcp-flow { display:flex; align-items:stretch; gap:0; height:11vh; }
+.mcp-box  { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; text-align:center; gap:4px; }
+.mcp-box.g { background:var(--green); } .mcp-box.n { background:var(--mid); border:1px solid rgba(129,185,0,.15); } .mcp-box.b { background:rgba(0,140,204,.12); border:1px solid rgba(0,140,204,.2); }
+.mcp-arr  { display:flex; align-items:center; padding:0 8px; color:var(--green); font-size:1.3vw; }
+.mcp-box .bt { font-family:'Unbounded',sans-serif; font-size:.74vw; font-weight:700; line-height:1.2; }
+.mcp-box.g .bt { color:var(--dark); } .mcp-box .bt { color:var(--white); }
+.mcp-box .bs { font-size:.57vw; letter-spacing:.1em; text-transform:uppercase; }
+.mcp-box.g .bs { color:rgba(28,41,59,.6); } .mcp-box .bs { color:var(--faint); }
+.mcp-why  { display:flex; flex-direction:column; gap:7px; flex:1; }
+.mcp-wi   { padding:10px 13px; background:rgba(255,255,255,.025); border-left:2px solid rgba(129,185,0,.3); }
+.mcp-wi strong { display:block; font-size:.76vw; font-weight:600; color:var(--white); margin-bottom:3px; }
+.mcp-wi p      { font-size:.7vw; color:var(--faint); line-height:1.5; }
+.mcp-right { display:flex; flex-direction:column; gap:10px; }
+.mcp-gap-box { padding:14px 16px; background:rgba(217,79,79,.06); border:1px solid rgba(217,79,79,.18); border-left:3px solid var(--red); }
+.mcp-gap-box .mgb-t { font-family:'Unbounded',sans-serif; font-size:.75vw; font-weight:700; color:#E88080; margin-bottom:5px; }
+.mcp-gap-box p { font-size:.73vw; color:var(--subtle); line-height:1.55; }
+.mcp-unlocks { flex:1; padding:13px 14px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06); }
+.mcp-unlocks .mu-t { font-size:.6vw; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); margin-bottom:7px; }
+.mcp-unlocks .mu-list { display:flex; flex-direction:column; gap:5px; }
+.mu-item { font-size:.72vw; color:var(--subtle); padding-left:14px; position:relative; line-height:1.4; }
+.mu-item::before { content:'v'; position:absolute; left:0; color:var(--green); font-weight:700; font-size:.68vw; }
+
+/* S4 BEFORE/AFTER */
+.ba-cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; flex:1; margin-top:1.5vh; }
+.ba-col  { display:flex; flex-direction:column; gap:7px; }
+.ba-hdr  { padding:9px 13px; font-family:'Unbounded',sans-serif; font-size:.72vw; font-weight:700; letter-spacing:.04em; text-align:center; }
+.ba-hdr.bad  { background:rgba(217,79,79,.1);  color:#E88080; border:1px solid rgba(217,79,79,.2); }
+.ba-hdr.good { background:rgba(129,185,0,.09); color:var(--green); border:1px solid rgba(129,185,0,.2); }
+.ba-step  { display:flex; align-items:flex-start; gap:9px; padding:9px 11px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05); flex:1; }
+.ba-step.bs  { border-left:3px solid rgba(217,79,79,.4); }
+.ba-step.gs  { border-left:3px solid var(--green); }
+.ba-num  { font-family:'Unbounded',sans-serif; font-size:.56vw; color:var(--faint); font-weight:700; flex-shrink:0; margin-top:2px; width:16px; }
+.ba-text { font-size:.72vw; color:var(--subtle); line-height:1.5; }
+.ba-text strong { display:block; font-size:.74vw; margin-bottom:1px; }
+.bs .ba-text strong  { color:#E88080; }
+.gs .ba-text strong  { color:var(--green); }
+.ba-time { padding:9px 13px; text-align:center; font-size:.78vw; font-weight:700; }
+.ba-time.bad  { background:rgba(217,79,79,.09);  color:#E88080; }
+.ba-time.good { background:rgba(129,185,0,.09);  color:var(--green); }
+
+/* S5 END USERS */
+.eu-intro { padding:12px 16px; background:rgba(129,185,0,.06); border-left:3px solid var(--green); font-size:.8vw; color:var(--subtle); line-height:1.6; margin-bottom:1.4vh; }
+.eu-intro strong { color:var(--white); }
+.eu-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; flex:1; }
+.eu-card { background:rgba(255,255,255,.025); border:1px solid rgba(129,185,0,.1); border-top:3px solid var(--green); padding:16px 14px; display:flex; flex-direction:column; }
+.eu-card h3 { font-family:'Unbounded',sans-serif; font-size:.78vw; font-weight:700; color:var(--white); margin-bottom:6px; }
+.eu-card .eu-desc { font-size:.72vw; color:var(--faint); line-height:1.55; margin-bottom:8px; flex:1; }
+.eu-card .eu-exs  { display:flex; flex-direction:column; gap:5px; }
+.eu-ex { padding:7px 9px; background:var(--deep); border-left:2px solid rgba(129,185,0,.28); font-size:.68vw; color:var(--green); font-style:italic; line-height:1.35; }
+.eu-ex .er { display:block; font-style:normal; color:var(--faint); font-size:.64vw; margin-top:2px; }
+
+/* S6 ADMINS */
+.adm-intro { padding:12px 16px; background:rgba(0,140,204,.06); border-left:3px solid var(--blue); font-size:.8vw; color:var(--subtle); line-height:1.6; margin-bottom:1.4vh; }
+.adm-intro strong { color:var(--white); }
+.adm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; flex:1; }
+.adm-card { background:rgba(255,255,255,.025); border:1px solid rgba(0,140,204,.1); border-top:3px solid var(--blue); padding:16px 14px; display:flex; flex-direction:column; }
+.adm-card h3 { font-family:'Unbounded',sans-serif; font-size:.75vw; font-weight:700; color:var(--white); margin-bottom:5px; }
+.adm-card .adm-desc { font-size:.7vw; color:var(--faint); line-height:1.55; margin-bottom:8px; flex:1; }
+.adm-card .adm-tools { display:flex; flex-wrap:wrap; gap:4px; }
+.adm-t { font-family:'JetBrains Mono',monospace; font-size:.56vw; padding:2px 6px; background:rgba(0,140,204,.09); color:#6AB0D8; border-radius:2px; border:1px solid rgba(0,140,204,.14); }
+
+/* S7 WHAT WE BUILT */
+.wst { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:1.6vh; }
+.stc { background:var(--mid); border:1px solid rgba(129,185,0,.1); padding:14px; text-align:center; position:relative; }
+.stc::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--green); }
+.stc-n { font-family:'Unbounded',sans-serif; font-size:3.4vw; font-weight:900; color:var(--green); line-height:1; letter-spacing:-.03em; }
+.stc-l { font-size:.63vw; color:var(--faint); letter-spacing:.1em; text-transform:uppercase; margin-top:4px; }
+.wcat { display:grid; grid-template-columns:repeat(3,1fr); gap:11px; }
+.wc  { border:1px solid rgba(129,185,0,.11); background:rgba(255,255,255,.02); padding:14px 13px; }
+.wc .wch { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+.wcd { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.wc h3  { font-family:'Unbounded',sans-serif; font-size:.7vw; font-weight:700; color:var(--white); }
+.wc p   { font-size:.68vw; color:var(--faint); line-height:1.5; margin-bottom:7px; }
+.wc .wct { display:flex; flex-wrap:wrap; gap:4px; }
+.wtg { font-family:'JetBrains Mono',monospace; font-size:.55vw; padding:2px 5px; background:rgba(0,191,111,.07); color:var(--teal); border-radius:2px; border:1px solid rgba(0,191,111,.13); }
+
+/* S8 ARCHITECTURE */
+.arch { display:flex; flex-direction:column; gap:8px; flex:1; margin-top:1.4vh; }
+.al  { display:grid; grid-template-columns:150px 1fr 1fr; gap:0; border:1px solid rgba(255,255,255,.05); overflow:hidden; flex:1; }
+.al-l { display:flex; flex-direction:column; justify-content:center; padding:11px 13px; border-right:1px solid rgba(255,255,255,.05); }
+.al-l .ln { font-family:'Unbounded',sans-serif; font-size:.75vw; font-weight:700; color:var(--white); margin-bottom:3px; }
+.al-l .lf { font-family:'JetBrains Mono',monospace; font-size:.57vw; color:var(--faint); line-height:1.5; }
+.al-d { padding:11px 15px; border-right:1px solid rgba(255,255,255,.05); display:flex; align-items:center; font-size:.7vw; color:var(--subtle); line-height:1.55; }
+.al-e { padding:11px 15px; display:flex; align-items:center; font-size:.66vw; color:var(--faint); line-height:1.5; }
+.al.tools { border-left:4px solid var(--green); } .al.tools .al-l { background:rgba(129,185,0,.06); }
+.al.api   { border-left:4px solid var(--teal);  } .al.api   .al-l { background:rgba(0,191,111,.05); }
+.al.auth  { border-left:4px solid var(--blue);  } .al.auth  .al-l { background:rgba(0,140,204,.05); }
+.arch-res { margin-top:8px; padding:9px 13px; background:rgba(129,185,0,.06); border:1px dashed rgba(129,185,0,.24); font-size:.68vw; color:var(--green); font-style:italic; }
+
+/* S9 UNDER THE HOOD */
+.hood { display:grid; grid-template-columns:1fr 1fr; gap:16px; flex:1; margin-top:1.6vh; }
+.hp   { display:flex; flex-direction:column; gap:8px; }
+.hp h3 { font-family:'Unbounded',sans-serif; font-size:.75vw; font-weight:700; color:var(--green); letter-spacing:.03em; padding-bottom:6px; border-bottom:1px solid rgba(129,185,0,.16); }
+.hi  { background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.05); padding:10px 12px; }
+.hi .ht { font-size:.74vw; font-weight:600; color:var(--white); margin-bottom:4px; }
+.hi .hb { font-size:.68vw; color:var(--faint); line-height:1.55; }
+.hi .hc { margin-top:6px; padding:6px 8px; background:var(--deep); border-radius:2px; font-family:'JetBrains Mono',monospace; font-size:.6vw; line-height:1.65; color:var(--subtle); }
+.hc .cg { color:var(--green); } .hc .ct { color:var(--teal); } .hc .cb { color:#6AB0D8; } .hc .cf { color:var(--faint); }
+
+/* S10 SECURITY */
+.sec { display:grid; grid-template-columns:1fr 1fr; gap:16px; flex:1; margin-top:1.6vh; }
+.sc  { display:flex; flex-direction:column; gap:8px; }
+.scard { padding:12px 14px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06); border-left:3px solid var(--green); }
+.scard h3 { font-size:.78vw; font-weight:600; color:var(--white); margin-bottom:4px; }
+.scard p  { font-size:.7vw; color:var(--faint); line-height:1.55; }
+.sdg { flex:1; background:var(--mid); border:1px solid rgba(129,185,0,.1); padding:13px 14px; display:flex; flex-direction:column; gap:6px; justify-content:center; }
+.sdg .sdt { font-family:'Unbounded',sans-serif; font-size:.65vw; color:var(--green); margin-bottom:2px; letter-spacing:.05em; }
+.srow { display:flex; align-items:center; gap:7px; padding:6px 8px; background:rgba(255,255,255,.03); }
+.srow .sl  { font-size:.66vw; color:var(--subtle); flex:1; }
+.srow .sb  { font-size:.56vw; padding:2px 7px; border-radius:2px; font-weight:700; letter-spacing:.07em; }
+.sb.local  { background:rgba(129,185,0,.13); color:var(--green); }
+.sb.never  { background:rgba(217,79,79,.1);  color:#E88080; }
+.sb.auto   { background:rgba(0,191,111,.1);  color:var(--teal); }
+
+/* S11 GETTING STARTED */
+.gss { display:grid; grid-template-columns:repeat(3,1fr); gap:13px; margin-bottom:1.6vh; }
+.gst { background:rgba(255,255,255,.025); border:1px solid rgba(129,185,0,.1); border-top:3px solid var(--green); padding:14px 13px; }
+.gst .sn { font-family:'Unbounded',sans-serif; font-size:1.7vw; font-weight:900; color:rgba(129,185,0,.18); line-height:1; margin-bottom:6px; }
+.gst h3  { font-size:.78vw; font-weight:700; color:var(--white); margin-bottom:5px; }
+.gst p   { font-size:.68vw; color:var(--faint); line-height:1.5; margin-bottom:7px; }
+.cb { background:var(--deep); border:1px solid rgba(255,255,255,.07); border-radius:3px; padding:9px 11px; font-family:'JetBrains Mono',monospace; font-size:.6vw; color:var(--subtle); line-height:1.7; }
+.cb .cc { color:rgba(138,170,187,.38); } .cb .ck { color:#6AB0D8; } .cb .cv { color:var(--teal); } .cb .cs { color:#C8A860; } .cb .cg { color:var(--green); }
+.gsc { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; }
+.gci { padding:9px 11px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06); text-align:center; }
+.gci .gi { font-size:1.4vw; margin-bottom:4px; }
+.gci .gn { font-size:.68vw; font-weight:600; color:var(--white); margin-bottom:2px; }
+.gci .gs { font-size:.58vw; color:var(--green); }
+
+/* S12 ROADMAP */
+.rmr { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; flex:1; margin-top:1.6vh; }
+.rmc { background:var(--mid); border:1px solid rgba(129,185,0,.1); border-top:none; padding:16px 13px; position:relative; display:flex; flex-direction:column; }
+.rmc .rmb { position:absolute; top:0; left:0; right:0; height:4px; background:var(--green); }
+.rmc .rn  { font-family:'Unbounded',sans-serif; font-size:.57vw; color:var(--green); letter-spacing:.14em; text-transform:uppercase; margin-bottom:8px; margin-top:3px; }
+.rmc h3   { font-family:'Unbounded',sans-serif; font-size:.85vw; font-weight:700; color:var(--white); margin-bottom:8px; line-height:1.2; }
+.rmc p    { font-size:.7vw; color:var(--faint); line-height:1.6; flex:1; }
+.rmc .rm-apis { margin-top:7px; display:flex; flex-direction:column; gap:3px; }
+.rmc .rm-api  { font-family:'JetBrains Mono',monospace; font-size:.57vw; color:var(--teal); background:rgba(0,191,111,.07); padding:2px 5px; border-radius:2px; }
+.done-b { display:inline-block; font-size:.57vw; background:var(--green); color:var(--dark); padding:3px 7px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; margin-top:8px; }
+.rm-foot { margin-top:1.4vh; padding:10px 14px; background:rgba(129,185,0,.05); border-left:3px solid var(--green); font-size:.7vw; color:var(--faint); font-style:italic; }
+
+/* S13 Q&A */
+.s-qa { background:var(--dark); align-items:center; justify-content:center; text-align:center; }
+.qa-bg  { position:absolute; inset:0; background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(129,185,0,.07) 0%,transparent 70%); }
+.qar    { position:absolute; border-radius:50%; border:1px solid rgba(129,185,0,.1); }
+.qa-c   { position:relative; z-index:2; }
+.qa-w   { font-family:'Unbounded',sans-serif; font-size:11vw; font-weight:900; color:var(--green); letter-spacing:-.04em; line-height:1; text-shadow:0 0 80px rgba(129,185,0,.2); }
+.qa-t   { font-size:1.3vw; color:var(--subtle); margin-top:1.5vh; font-weight:300; letter-spacing:.05em; }
+.qa-l   { margin-top:.8vh; font-size:.82vw; color:var(--green); }
+.qa-n   { margin-top:2.5vh; font-size:.7vw; color:var(--faint); }
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+<div id="progress-bar"></div>
+<div id="counter"><span id="cur">1</span> / <span id="tot">13</span></div>
+<button class="nav-btn" id="btn-prev">&#8592;</button>
+<button class="nav-btn" id="btn-next">&#8594;</button>
+
+<div class="deck">
+
+<!-- 01 TITLE -->
+<div class="slide s1 active" data-index="0">
+  <div class="s1-noise"></div><div class="s1-grid"></div><div class="s1-blob"></div>
+  <div class="s1-ring"></div><div class="s1-ring2"></div>
+  <div class="s1-badge"><span class="bn">MCP</span><span class="bs">Protocol</span></div>
+  <div class="s1-content">
+    <p class="s1-eyebrow">Platform Engineering &nbsp;/&nbsp; AI Integration</p>
+    <h1 class="s1-title">Anaplan<em>MCP</em></h1>
+    <p class="s1-sub">The bridge that didn't exist — connecting AI assistants to Anaplan so anyone can explore data, run processes, and manage models in plain English.</p>
+    <div class="s1-tags">
+      <span class="tag">Why it was built</span>
+      <span class="tag">For end users</span>
+      <span class="tag">For admins</span>
+      <span class="tag">How it works</span>
+    </div>
+  </div>
+  <p class="s1-presenter"><strong>Lara Srinath</strong> &nbsp;·&nbsp; Platform Engineering &nbsp;·&nbsp; 2026</p>
+</div>
+
+<!-- 02 THE GAP -->
+<div class="slide bg-dark" data-index="1">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">01 — Why This Exists</p>
+    <h2>The Gap: No Official Anaplan MCP Server</h2>
+  </div>
+  <div class="body">
+    <div class="gap-headline">Anaplan has no official MCP server. <em>Nobody does.</em><br>Every interaction with Anaplan data requires manual work or custom code — from scratch, every time.</div>
+    <div class="gap-cols">
+      <div class="gap-left">
+        <div class="gap-void">
+          <div class="gv-title">What doesn't exist (until now)</div>
+          <div class="gv-list">
+            <div class="gv-item">No official Anaplan MCP server — from Anaplan or any vendor</div>
+            <div class="gv-item">No standard way for AI assistants to query or act on Anaplan data</div>
+            <div class="gv-item">No shared layer for auth, pagination, retry across integrations</div>
+            <div class="gv-item">LLMs can reason over planning data but have zero native access</div>
+            <div class="gv-item">Every team rewriting the same API glue code independently</div>
+          </div>
+        </div>
+        <div class="gap-built">
+          <div class="gb-title">What we built</div>
+          <div class="gb-text">An open-source MCP server that wraps the full Anaplan Integration API v2 in 68 structured tools — so any MCP-compatible AI can talk to Anaplan out of the box. No glue code. No manual steps.</div>
+        </div>
+      </div>
+      <div class="gap-right">
+        <div class="gm-title">Before this existed — getting data out of Anaplan</div>
+        <div class="gap-step"><strong>Find the model ID</strong>Log in to UI, navigate to workspace, copy the 32-char hex model ID manually</div>
+        <div class="gap-step"><strong>Handle auth</strong>POST to auth endpoint, store token, track expiry, refresh before 35-min window closes</div>
+        <div class="gap-step"><strong>Paginate the list</strong>Write offset/limit loop, handle Anaplan returning undefined instead of [] for empty results</div>
+        <div class="gap-step"><strong>Trigger and poll</strong>POST to run the export, poll task endpoint until COMPLETE, download chunks one by one</div>
+        <div class="gap-step"><strong>Parse and share</strong>Format CSV output, share it manually — repeat next week from scratch</div>
+        <div class="gap-answer">One natural-language prompt now does all of this automatically.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 03 WHAT IS MCP -->
+<div class="slide bg-dark" data-index="2">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">02 — Foundation</p>
+    <h2>What is MCP?</h2>
+    <p class="sub">Model Context Protocol — the open standard by Anthropic that makes this possible</p>
+  </div>
+  <div class="body">
+    <div class="mcp-row">
+      <div class="mcp-left">
+        <div class="mcp-def">MCP gives AI assistants a <strong>structured, tool-calling interface</strong> to external systems — similar to how REST standardised web APIs. The AI describes what it wants in natural language; MCP routes it to the right tool with validated parameters.</div>
+        <div class="mcp-flow">
+          <div class="mcp-box g"><div class="bt">AI Assistant</div><div class="bs">Claude · Cursor · Copilot</div></div>
+          <div class="mcp-arr">&#8594;</div>
+          <div class="mcp-box n"><div class="bt">Anaplan MCP Server</div><div class="bs">JSON-RPC · stdio · local</div></div>
+          <div class="mcp-arr">&#8594;</div>
+          <div class="mcp-box b"><div class="bt">Anaplan API</div><div class="bs">api.anaplan.com</div></div>
+        </div>
+        <div class="mcp-why">
+          <div class="mcp-wi"><strong>Plug-and-play</strong><p>Any MCP-compatible host connects automatically. No custom integration per AI tool.</p></div>
+          <div class="mcp-wi"><strong>Self-describing tools</strong><p>Each tool has a name, description, and validated schema. The AI decides when to call it.</p></div>
+          <div class="mcp-wi"><strong>Local and secure</strong><p>Runs as a local process. Credentials never leave your machine or reach any cloud relay.</p></div>
+        </div>
+      </div>
+      <div class="mcp-right">
+        <div class="mcp-gap-box">
+          <div class="mgb-t">The Anaplan-specific gap</div>
+          <p>MCP servers exist for GitHub, Slack, databases, filesystems, Jira, and dozens of other enterprise tools. Anaplan has none — official or community. This is the first.</p>
+        </div>
+        <div class="mcp-unlocks">
+          <div class="mu-t">What this unlocks for Anaplan</div>
+          <div class="mu-list">
+            <div class="mu-item">Ask Claude to pull model data — it calls the right API, handles auth and pagination</div>
+            <div class="mu-item">Say "run the January import" — it triggers, polls, and reports back with row counts</div>
+            <div class="mu-item">Ask "list all models in this workspace" — instant, no UI navigation needed</div>
+            <div class="mu-item">Write data values using plain dimension names, not 32-char hex IDs</div>
+            <div class="mu-item">Works today with Claude Desktop, Claude Code, and Cursor — more AI hosts every month</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 04 BEFORE / AFTER -->
+<div class="slide bg-dark" data-index="3">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">03 — The Difference</p>
+    <h2>Before vs After</h2>
+    <p class="sub">Same task: pull Q3 headcount data and run the actuals import</p>
+  </div>
+  <div class="body">
+    <div class="ba-cols">
+      <div class="ba-col">
+        <div class="ba-hdr bad">Before — Manual</div>
+        <div class="ba-step bs"><span class="ba-num">1</span><div class="ba-text"><strong>Log in and navigate</strong>Open browser, go to Anaplan UI, navigate to the right workspace and model</div></div>
+        <div class="ba-step bs"><span class="ba-num">2</span><div class="ba-text"><strong>Copy IDs</strong>Find and copy 32-char hex IDs for workspace, model, and module — required for every API call</div></div>
+        <div class="ba-step bs"><span class="ba-num">3</span><div class="ba-text"><strong>Get an auth token</strong>POST credentials to auth endpoint, store the token, note the 35-min expiry window</div></div>
+        <div class="ba-step bs"><span class="ba-num">4</span><div class="ba-text"><strong>Write the pagination loop</strong>Call the list endpoint, handle meta.paging, loop until all pages are fetched</div></div>
+        <div class="ba-step bs"><span class="ba-num">5</span><div class="ba-text"><strong>Trigger import, wait, poll</strong>POST to run the import, poll task status endpoint until COMPLETE or FAILED</div></div>
+        <div class="ba-step bs"><span class="ba-num">6</span><div class="ba-text"><strong>Format and share</strong>Parse the response, format into something readable, send it along</div></div>
+        <div class="ba-time bad">30 to 60 min &nbsp;·&nbsp; error-prone &nbsp;·&nbsp; one-off every time</div>
+      </div>
+      <div class="ba-col">
+        <div class="ba-hdr good">After — Anaplan MCP</div>
+        <div class="ba-step gs"><span class="ba-num">1</span><div class="ba-text"><strong>Type in Claude</strong>"Show me Q3 headcount in the EMEA workspace, then run the January actuals import"</div></div>
+        <div class="ba-step gs"><span class="ba-num">2</span><div class="ba-text"><strong>NameResolver handles IDs</strong>Resolves "EMEA workspace", "Q3", "January actuals" to hex IDs — no lookup needed</div></div>
+        <div class="ba-step gs"><span class="ba-num">3</span><div class="ba-text"><strong>AuthManager handles tokens</strong>Selects provider, caches token, schedules refresh 5 min before expiry — transparent</div></div>
+        <div class="ba-step gs"><span class="ba-num">4</span><div class="ba-text"><strong>getAll() handles pagination</strong>Fetches every page automatically, guards against Anaplan returning undefined for empty lists</div></div>
+        <div class="ba-step gs"><span class="ba-num">5</span><div class="ba-text"><strong>Polls import until done</strong>run_import triggers the job, polls every 2s, returns COMPLETE + row count or error details inline</div></div>
+        <div class="ba-step gs" style="visibility:hidden;"></div>
+        <div class="ba-time good">Under 15 seconds &nbsp;·&nbsp; reusable &nbsp;·&nbsp; same prompt works tomorrow</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 05 FOR END USERS -->
+<div class="slide bg-dark" data-index="4">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">04 — For End Users</p>
+    <h2>What End Users Can Now Do</h2>
+    <p class="sub">Business users, finance teams, planners — anyone who needs Anaplan data or needs to trigger a process</p>
+  </div>
+  <div class="body">
+    <div class="eu-intro"><strong>No API knowledge required. No model builder on standby.</strong> Ask in plain English — auth, IDs, pagination, and polling are all handled automatically. Stop waiting 48 hours for someone to pull a number.</div>
+    <div class="eu-grid">
+      <div class="eu-card">
+        <h3>Data Extraction</h3>
+        <div class="eu-desc">Pull any view's live data directly into the conversation. Works with the full transactional API — real numbers, not a stale export.</div>
+        <div class="eu-exs">
+          <div class="eu-ex">"Show me Q3 forecast numbers for EMEA by product"<span class="er">read_cells returns structured JSON, displayed as a table</span></div>
+          <div class="eu-ex">"Pull the current pricing data for all products"<span class="er">get_list_items + read_cells, paginated automatically</span></div>
+        </div>
+      </div>
+      <div class="eu-card">
+        <h3>Running Processes &amp; Imports</h3>
+        <div class="eu-desc">Trigger imports, exports, and processes by name. No process IDs needed. Server polls until done and reports back with row counts and any errors.</div>
+        <div class="eu-exs">
+          <div class="eu-ex">"Run the January actuals import and tell me if it worked"<span class="er">run_import polls every 2s, returns COMPLETE + 1,842 rows loaded</span></div>
+          <div class="eu-ex">"Export the Forecast Summary view and save to Downloads"<span class="er">run_export completes, downloads chunks, saves to ~/Downloads</span></div>
+        </div>
+      </div>
+      <div class="eu-card">
+        <h3>Writing Data</h3>
+        <div class="eu-desc">Update cell values and list items using plain names. NameResolver maps everything to IDs before the write — no API structure knowledge needed.</div>
+        <div class="eu-exs">
+          <div class="eu-ex">"Update Cost Centre 1042's Q3 budget to 250,000"<span class="er">write_cells resolves all names, posts value with full dimension targeting</span></div>
+          <div class="eu-ex">"Add these 50 new products to the master list"<span class="er">add_list_items bulk-inserts with code, name, and all properties</span></div>
+        </div>
+      </div>
+      <div class="eu-card">
+        <h3>Model Q&amp;A</h3>
+        <div class="eu-desc">Ask about model structure, line item formulas, dimension assignments — without opening the Anaplan UI. Onboard to a new model in minutes, not weeks.</div>
+        <div class="eu-exs">
+          <div class="eu-ex">"What are the line items in Headcount and their formulas?"<span class="er">show_lineitems with includeAll:true returns formula, format, dimensions</span></div>
+          <div class="eu-ex">"Walk me through the modules in this model"<span class="er">show_modules + show_lineitems builds a full structural overview</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 06 FOR ADMINS -->
+<div class="slide bg-dark" data-index="5">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">05 — For Admins &amp; Model Builders</p>
+    <h2>What Admins &amp; Model Builders Can Now Do</h2>
+    <p class="sub">Workspace management, model structure, impact analysis, lifecycle, users, and calendar control</p>
+  </div>
+  <div class="body">
+    <div class="adm-intro"><strong>Navigate and manage your full Anaplan estate through conversation.</strong> Find models across all workspaces, audit structure, trace dependencies, and manage calendar settings — without clicking through the UI.</div>
+    <div class="adm-grid">
+      <div class="adm-card">
+        <h3>Workspace &amp; Model Discovery</h3>
+        <div class="adm-desc">List all workspaces and all models across your entire tenant. Check model status, last-saved timestamps. Cross-workspace searches in seconds.</div>
+        <div class="adm-tools"><span class="adm-t">show_workspaces</span><span class="adm-t">show_allmodels</span><span class="adm-t">show_modeldetails</span><span class="adm-t">show_modelstatus</span></div>
+      </div>
+      <div class="adm-card">
+        <h3>Model Structure &amp; Impact Analysis</h3>
+        <div class="adm-desc">Browse every module, line item, list, and dimension. Trace which modules use a given list. Find all line items referencing a specific metric.</div>
+        <div class="adm-tools"><span class="adm-t">show_modules</span><span class="adm-t">show_alllineitems</span><span class="adm-t">show_lists</span><span class="adm-t">show_lineitem_dimensions</span><span class="adm-t">show_allviews</span></div>
+      </div>
+      <div class="adm-card">
+        <h3>Model Lifecycle Management</h3>
+        <div class="adm-desc">Open and close models, bulk-delete archived models, manage current period, fiscal year, and version switchover dates.</div>
+        <div class="adm-tools"><span class="adm-t">open_model</span><span class="adm-t">close_model</span><span class="adm-t">bulk_delete_models</span><span class="adm-t">set_currentperiod</span><span class="adm-t">set_fiscalyear</span></div>
+      </div>
+      <div class="adm-card">
+        <h3>Users &amp; Access Audit</h3>
+        <div class="adm-desc">List all users in your tenant, look up individual user details, review the current authenticated session — useful for access audits and onboarding checks.</div>
+        <div class="adm-tools"><span class="adm-t">show_users</span><span class="adm-t">show_userdetails</span><span class="adm-t">show_currentuser</span></div>
+      </div>
+      <div class="adm-card">
+        <h3>Process &amp; Task History</h3>
+        <div class="adm-desc">List all imports, exports, and processes. Review task history, download failure dumps for debugging failed runs, cancel stuck tasks.</div>
+        <div class="adm-tools"><span class="adm-t">show_tasks</span><span class="adm-t">get_action_status</span><span class="adm-t">download_importdump</span><span class="adm-t">download_processdump</span><span class="adm-t">cancel_task</span></div>
+      </div>
+      <div class="adm-card">
+        <h3>Versions &amp; Calendar</h3>
+        <div class="adm-desc">Browse version metadata, set version switchover dates, inspect fiscal calendar settings — all without opening the model in the UI.</div>
+        <div class="adm-tools"><span class="adm-t">show_versions</span><span class="adm-t">set_versionswitchover</span><span class="adm-t">show_modelcalendar</span><span class="adm-t">show_currentperiod</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 07 WHAT WE BUILT -->
+<div class="slide bg-dark" data-index="6">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">06 — The Build</p>
+    <h2>What We Built</h2>
+    <p class="sub">Complete coverage of the Anaplan Integration API v2 — 68 tools across 3 categories</p>
+  </div>
+  <div class="body">
+    <div class="wst">
+      <div class="stc"><div class="stc-n">68</div><div class="stc-l">MCP Tools</div></div>
+      <div class="stc"><div class="stc-n">16</div><div class="stc-l">API Domains</div></div>
+      <div class="stc"><div class="stc-n">3</div><div class="stc-l">Auth Providers</div></div>
+      <div class="stc"><div class="stc-n">100%</div><div class="stc-l">API v2 Coverage</div></div>
+    </div>
+    <div class="wcat">
+      <div class="wc">
+        <div class="wch"><div class="wcd"></div><h3>Exploration — 37 tools</h3></div>
+        <p>Read-only. Safe to use freely. Browse every resource in your Anaplan tenant.</p>
+        <div class="wct"><span class="wtg">show_workspaces</span><span class="wtg">show_models</span><span class="wtg">show_allmodels</span><span class="wtg">show_modules</span><span class="wtg">show_lineitems</span><span class="wtg">show_alllineitems</span><span class="wtg">show_lists</span><span class="wtg">show_views</span><span class="wtg">show_exports</span><span class="wtg">show_imports</span><span class="wtg">show_users</span><span class="wtg">show_versions</span><span class="wtg">show_tasks</span></div>
+      </div>
+      <div class="wc">
+        <div class="wch"><div class="wcd"></div><h3>Bulk Actions — 26 tools</h3></div>
+        <p>Trigger jobs, manage files, configure model settings. Polls until completion.</p>
+        <div class="wct"><span class="wtg">run_import</span><span class="wtg">run_export</span><span class="wtg">run_process</span><span class="wtg">upload_file</span><span class="wtg">download_file</span><span class="wtg">set_currentperiod</span><span class="wtg">set_fiscalyear</span><span class="wtg">open_model</span><span class="wtg">close_model</span><span class="wtg">bulk_delete_models</span><span class="wtg">cancel_task</span></div>
+      </div>
+      <div class="wc">
+        <div class="wch"><div class="wcd"></div><h3>Transactional — 5 tools</h3></div>
+        <p>Cell-level reads and writes. List item mutations. Full dimension targeting.</p>
+        <div class="wct"><span class="wtg">read_cells</span><span class="wtg">write_cells</span><span class="wtg">add_list_items</span><span class="wtg">update_list_items</span><span class="wtg">delete_list_items</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 08 ARCHITECTURE -->
+<div class="slide bg-dark" data-index="7">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">07 — How It Works</p>
+    <h2>Architecture</h2>
+    <p class="sub">Three layers under src/ — each with a single responsibility</p>
+  </div>
+  <div class="body">
+    <div class="arch">
+      <div class="al tools">
+        <div class="al-l"><div class="ln">Tools Layer</div><div class="lf">exploration.ts<br>bulk.ts<br>transactional.ts</div></div>
+        <div class="al-d">68 MCP tools registered on McpServer. zod-validated input params. formatTable() returns markdown tables as separate content blocks. All list tools include offset / limit / search.</div>
+        <div class="al-e">Naming: show_ for exploration, run_/set_/create_/delete_ for bulk, direct verbs for transactional. Polymorphic tools (show_tasks, cancel_task) route via actionType param.</div>
+      </div>
+      <div class="al api">
+        <div class="al-l"><div class="ln">API Layer</div><div class="lf">client.ts<br>+ 16 wrappers</div></div>
+        <div class="al-d">AnaplanClient handles all HTTP to api.anaplan.com/2/0/. Retry on 429 (Retry-After) and 5xx — 3 attempts, exponential backoff 1s to 4s. getAll() auto-paginates. getRaw() for CSV chunks.</div>
+        <div class="al-e">16 domains: Workspaces, Models, Modules, Lists, Imports, Exports, Processes, Files, Actions, Transactional, Dimensions, ModelManagement, Calendar, Versions, Users, LargeReads.</div>
+      </div>
+      <div class="al auth">
+        <div class="al-l"><div class="ln">Auth Layer</div><div class="lf">basic.ts<br>certificate.ts<br>oauth.ts</div></div>
+        <div class="al-d">AuthManager selects provider by env var priority: certificate over OAuth over basic. Caches token, schedules auto-refresh 5 minutes before the 35-minute Anaplan expiry. Zero manual management.</div>
+        <div class="al-e">OAuth: device grant (interactive, opens browser) or authorization code grant (non-interactive). Certificate: PEM cert + private key path via env vars.</div>
+      </div>
+    </div>
+    <div class="arch-res">NameResolver spans all layers — accepts "Q4 Forecast" or raw 32-char hex IDs. Resolves workspace then model then module sequentially. Case-insensitive, 5-min in-memory cache.</div>
+  </div>
+</div>
+
+<!-- 09 UNDER THE HOOD -->
+<div class="slide bg-dark" data-index="8">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">08 — Technical Depth</p>
+    <h2>Under the Hood</h2>
+    <p class="sub">The engineering details that make this production-ready, not a prototype</p>
+  </div>
+  <div class="body">
+    <div class="hood">
+      <div class="hp">
+        <h3>Retry &amp; Resilience</h3>
+        <div class="hi">
+          <div class="ht">Exponential backoff on 5xx — 3 attempts</div>
+          <div class="hb">Delays: 1s, 2s, 4s. 429s honour the Retry-After header exactly. No silent failures — errors surface with context.</div>
+          <div class="hc"><span class="cf">// client.ts</span><br><span class="cb">if</span> (res.status === <span class="cg">429</span>) {<br>&nbsp;&nbsp;<span class="cb">const</span> wait = retryAfter ?? <span class="cg">1000</span> * <span class="cg">2</span>**attempt;<br>&nbsp;&nbsp;<span class="ct">await</span> sleep(wait);<br>}</div>
+        </div>
+        <div class="hi">
+          <div class="ht">Auto-pagination with getAll()</div>
+          <div class="hb">Fetches every page using meta.paging. Guards against Anaplan returning undefined (not []) for empty arrays. Supports fallback key arrays for inconsistent response shapes.</div>
+          <div class="hc"><span class="cf">// keeps fetching until no next page</span><br><span class="cb">while</span> (meta?.paging?.nextPage) {<br>&nbsp;&nbsp;offset += limit;<br>&nbsp;&nbsp;results.push(...<span class="ct">await</span> fetch(offset));<br>}</div>
+        </div>
+      </div>
+      <div class="hp">
+        <h3>Auth &amp; Token Lifecycle</h3>
+        <div class="hi">
+          <div class="ht">Token auto-refresh — never expired mid-request</div>
+          <div class="hb">35-min Anaplan token lifetime. AuthManager schedules refresh 5 min early. Long-running operations never hit a 401 mid-way through.</div>
+          <div class="hc"><span class="cf">// manager.ts</span><br>refreshAt = expiresAt - <span class="cg">5 * 60 * 1000</span>;<br>setTimeout(refresh, refreshAt - Date.now());</div>
+        </div>
+        <div class="hi">
+          <div class="ht">Name to ID resolution with caching</div>
+          <div class="hb">Every tool accepts plain names. Sequential resolution: workspace then model then module. Results cached 5 min to avoid redundant API calls per conversation turn.</div>
+          <div class="hc"><span class="ct">const</span> wId = <span class="cb">await</span> resolver.resolveWorkspace(workspaceId);<br><span class="ct">const</span> mId = <span class="cb">await</span> resolver.resolveModel(wId, modelId);<br><span class="cf">// mId is now the 32-char hex ID</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 10 SECURITY -->
+<div class="slide bg-dark" data-index="9">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">09 — Governance</p>
+    <h2>Security &amp; Safety</h2>
+    <p class="sub">What stays local, what never leaves, and what the AI can and cannot do</p>
+  </div>
+  <div class="body">
+    <div class="sec">
+      <div class="sc">
+        <div class="scard"><h3>Credentials never leave your machine</h3><p>Server runs as a local subprocess over stdio. Your Anaplan credentials are used directly in API calls — never sent to Claude's servers or any cloud relay.</p></div>
+        <div class="scard"><h3>Explicit intent required for writes</h3><p>37 exploration tools are fully read-only. Write tools and job triggers only fire when the AI explicitly calls them — with visible parameters you can review and approve before execution.</p></div>
+        <div class="scard"><h3>Your existing credentials and permissions</h3><p>No new service accounts, no elevated access. The server operates within whatever Anaplan permissions your account already has. Least-privilege credentials recommended.</p></div>
+        <div class="scard"><h3>Open source and fully auditable</h3><p>The entire codebase is open source on GitHub. Every API call the server makes is visible in the source and appears as a tool call in the AI chat before it runs.</p></div>
+      </div>
+      <div class="sc">
+        <div class="sdg">
+          <div class="sdt">Data Flow — What Goes Where</div>
+          <div class="srow"><div class="sl">Anaplan credentials (username / password / cert / OAuth)</div><div class="sb local">Local only</div></div>
+          <div class="srow"><div class="sl">Auth token (Anaplan JWT, 35-min lifetime)</div><div class="sb auto">Auto-refreshed</div></div>
+          <div class="srow"><div class="sl">Credentials sent to Claude / Anthropic</div><div class="sb never">Never</div></div>
+          <div class="srow"><div class="sl">MCP server process location</div><div class="sb local">Local stdio</div></div>
+          <div class="srow"><div class="sl">Tool call parameters (IDs, values, workspace names)</div><div class="sb local">Visible in chat</div></div>
+          <div class="srow"><div class="sl">Anaplan model data in API responses</div><div class="sb local">Local only</div></div>
+          <div class="srow"><div class="sl">Write / run operations</div><div class="sb local">Requires approval</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 11 GETTING STARTED -->
+<div class="slide bg-dark" data-index="10">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">10 — Setup</p>
+    <h2>Getting Started</h2>
+    <p class="sub">Three steps — running in under 5 minutes</p>
+  </div>
+  <div class="body">
+    <div class="gss">
+      <div class="gst">
+        <div class="sn">01</div>
+        <h3>Install &amp; Build</h3>
+        <p>Clone the repo, install dependencies, compile TypeScript.</p>
+        <div class="cb"><span class="cc"># clone and build</span><br>git clone github.com/<br>larasrinath/anaplan-mcp<br>npm install<br>npm run build</div>
+      </div>
+      <div class="gst">
+        <div class="sn">02</div>
+        <h3>Set Credentials</h3>
+        <p>Add your Anaplan auth to the Claude Desktop config. One env block — basic, cert, or OAuth.</p>
+        <div class="cb"><span class="cc">// claude_desktop_config.json</span><br>{<br>&nbsp;<span class="cs">"mcpServers"</span>: {<br>&nbsp;&nbsp;<span class="cs">"anaplan"</span>: {<br>&nbsp;&nbsp;&nbsp;<span class="cs">"command"</span>: <span class="cv">"node"</span>,<br>&nbsp;&nbsp;&nbsp;<span class="cs">"args"</span>: [<span class="cv">"dist/index.js"</span>],<br>&nbsp;&nbsp;&nbsp;<span class="cs">"env"</span>: {<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"ANAPLAN_USERNAME"</span>: <span class="cv">"..."</span>,<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="cs">"ANAPLAN_PASSWORD"</span>: <span class="cv">"..."</span><br>&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>&nbsp;}<br>}</div>
+      </div>
+      <div class="gst">
+        <div class="sn">03</div>
+        <h3>Start Talking to Anaplan</h3>
+        <p>Restart Claude Desktop. All 68 tools are immediately available.</p>
+        <div class="cb"><span class="cc"># In Claude, try:</span><br><br><span class="cg">"Show me all workspaces"</span><br><br><span class="cg">"List models in EMEA"</span><br><br><span class="cg">"Run the Q1 close process"</span><br><br><span class="cg">"What modules are in this model?"</span></div>
+      </div>
+    </div>
+    <div class="gsc">
+      <div class="gci"><div class="gi">&#x1F916;</div><div class="gn">Claude Desktop</div><div class="gs">Supported</div></div>
+      <div class="gci"><div class="gi">&#x1F4BB;</div><div class="gn">Claude Code</div><div class="gs">Supported</div></div>
+      <div class="gci"><div class="gi">&#x26A1;</div><div class="gn">Cursor</div><div class="gs">Supported</div></div>
+      <div class="gci"><div class="gi">&#x1F527;</div><div class="gn">Any MCP Host</div><div class="gs">Open standard</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 12 ROADMAP -->
+<div class="slide bg-dark" data-index="11">
+  <div class="rail"></div>
+  <div class="hdr">
+    <p class="lbl">11 — What's Next</p>
+    <h2>Roadmap</h2>
+    <p class="sub">Integration API v2 fully covered. Four expansion phases using the same infrastructure.</p>
+  </div>
+  <div class="body">
+    <div class="rmr">
+      <div class="rmc" style="opacity:.5; border-left:4px solid var(--green);">
+        <div class="rmb"></div>
+        <div class="rn">Phase 1 — Complete</div>
+        <h3>Integration API v2</h3>
+        <p>68 tools across 16 domains. Full CRUD, job execution, large-volume reads, all three auth providers, name resolution.</p>
+        <div class="rm-apis"><span class="rm-api">api.anaplan.com/2/0/</span></div>
+        <span class="done-b">Done</span>
+      </div>
+      <div class="rmc">
+        <div class="rmb"></div>
+        <div class="rn">Phase 2 — Next</div>
+        <h3>ALM API</h3>
+        <p>Application Lifecycle Management. Deploy, promote, and synchronise models across environments. Compare and restore versions.</p>
+        <div class="rm-apis"><span class="rm-api">api.anaplan.com/2/0/</span></div>
+      </div>
+      <div class="rmc">
+        <div class="rmb"></div>
+        <div class="rn">Phase 3</div>
+        <h3>SCIM API</h3>
+        <p>User and Group Provisioning. Automate onboarding, deprovisioning, and role management for Anaplan users at scale.</p>
+        <div class="rm-apis"><span class="rm-api">api.anaplan.com/scim/1/0/v2/</span></div>
+      </div>
+      <div class="rmc">
+        <div class="rmb"></div>
+        <div class="rn">Phases 4 and 5</div>
+        <h3>CloudWorks + Audit</h3>
+        <p>Integration scheduling and orchestration via CloudWorks, and full compliance event log querying via the Audit API.</p>
+        <div class="rm-apis"><span class="rm-api">api.cloudworks.anaplan.com</span><span class="rm-api">audit.anaplan.com</span></div>
+      </div>
+    </div>
+    <div class="rm-foot">All phases reuse the existing AuthManager, AnaplanClient, and NameResolver — they only differ by base URL. Parallel development is possible.</div>
+  </div>
+</div>
+
+<!-- 13 Q&A -->
+<div class="slide s-qa" data-index="12">
+  <div class="qa-bg"></div>
+  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+    <div class="qar" style="width:72vmin;height:72vmin;"></div>
+    <div class="qar" style="width:56vmin;height:56vmin;opacity:.6;"></div>
+    <div class="qar" style="width:40vmin;height:40vmin;opacity:.35;"></div>
+  </div>
+  <div class="qa-c">
+    <div class="qa-w">Q&amp;A</div>
+    <p class="qa-t">Thank you.</p>
+    <p class="qa-l">github.com/larasrinath/anaplan-mcp</p>
+    <p class="qa-n">Lara Srinath &nbsp;&#183;&nbsp; Platform Engineering</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const curEl  = document.getElementById('cur');
+const bar    = document.getElementById('progress-bar');
+const total  = slides.length;
+document.getElementById('tot').textContent = total;
+let current = 0, animating = false;
+function goTo(n) {
+  if (animating || n === current || n < 0 || n >= total) return;
+  animating = true;
+  slides[current].classList.remove('active');
+  slides[current].classList.add('exit');
+  current = n;
+  slides[current].classList.add('active');
+  setTimeout(() => { document.querySelectorAll('.exit').forEach(s => s.classList.remove('exit')); animating = false; }, 560);
+  curEl.textContent = current + 1;
+  bar.style.width = ((current + 1) / total * 100) + '%';
+}
+document.getElementById('btn-prev').onclick = () => goTo(current - 1);
+document.getElementById('btn-next').onclick = () => goTo(current + 1);
+document.addEventListener('keydown', e => {
+  if (['ArrowRight','ArrowDown',' '].includes(e.key)) { e.preventDefault(); goTo(current + 1); }
+  if (['ArrowLeft','ArrowUp'].includes(e.key)) { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'Home') goTo(0);
+  if (e.key === 'End') goTo(total - 1);
+});
+let tx = null;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+document.addEventListener('touchend', e => { if (tx===null) return; const dx=tx-e.changedTouches[0].clientX; if(Math.abs(dx)>50) dx>0?goTo(current+1):goTo(current-1); tx=null; });
+const cursor = document.getElementById('cursor');
+const ring   = document.getElementById('cursor-ring');
+let rx=0,ry=0,mx=0,my=0;
+document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; cursor.style.left=mx+'px'; cursor.style.top=my+'px'; });
+(function anim(){ rx+=(mx-rx)*.14; ry+=(my-ry)*.14; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(anim); })();
+bar.style.width = (1/total*100)+'%';
+</script>
+</body>
+</html>
