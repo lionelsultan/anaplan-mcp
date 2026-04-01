@@ -87,12 +87,14 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
 
   server.tool("show_models", "List models in a workspace. Returns model IDs needed by most tools. Use show_modules next to explore a model's structure.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    state: z.enum(["UNLOCKED", "PRODUCTION", "ARCHIVED", "LOCKED", "MAINTENANCE", "PRODUCTION_MAINTENANCE"]).optional().describe("Filter by model state"),
     ...paginationParams,
-  }, async ({ workspaceId, limit, search }) => {
+  }, async ({ workspaceId, state, limit, search }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
-    const models = await apis.models.list(wId);
+    let models = await apis.models.list(wId);
+    if (state) models = models.filter((m: any) => m.activeState === state);
     return withNextSteps(
-      tableResult(models, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "models", { limit, search }),
+      tableResult(models, [{ header: "Name", key: "name" }, { header: "State", key: "activeState" }, { header: "ID", key: "id" }], "models", { limit, search }),
       ["Use show_modules to explore modules, show_imports/show_exports for bulk actions."],
     );
   });
@@ -344,14 +346,16 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
   });
 
   server.tool("show_allmodels", "List all models across all workspaces. Returns model IDs needed by ID-only tools like show_allviews and show_alllineitems.", {
+    state: z.enum(["UNLOCKED", "PRODUCTION", "ARCHIVED", "LOCKED", "MAINTENANCE", "PRODUCTION_MAINTENANCE"]).optional().describe("Filter by model state"),
     ...paginationParams,
-  }, async ({ limit, search }) => {
-    const models = await apis.models.listAll();
+  }, async ({ state, limit, search }) => {
+    let models = await apis.models.listAll();
+    if (state) models = models.filter((m: any) => m.activeState === state);
     return tableResult(models, [
       { header: "Name", key: "name" },
       { header: "ID", key: "id" },
       { header: "Workspace", key: "currentWorkspaceName" },
-      { header: "State", key: "activeState" }, // This is Manchester United, we are talking about
+      { header: "State", key: "activeState" },
     ], "models", { limit, search });
   });
 
