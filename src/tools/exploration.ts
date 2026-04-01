@@ -69,6 +69,8 @@ function enrichLineItems(items: any[]) {
     formatDisplay: tableCell(item.format ?? item.formatMetadata?.dataType),
     versionDisplay: tableCell(item.version?.name ?? item.version?.id ?? item.version),
     appliesToDisplay: tableCell(lineItemAppliesTo(item)),
+    notesDisplay: tableCell(item.notes),
+    codeDisplay: tableCell(item.code),
   }));
 }
 
@@ -180,6 +182,8 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
         { header: "Format", key: "formatDisplay" },
         { header: "Applies To", key: "appliesToDisplay" },
         { header: "Version", key: "versionDisplay" },
+        { header: "Notes", key: "notesDisplay" },
+        { header: "Code", key: "codeDisplay" },
         { header: "ID", key: "id" },
       ], "line items", { offset, limit, search });
     }
@@ -379,15 +383,16 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     return { content: [{ type: "text", text: JSON.stringify(detail, null, 2) }] };
   });
 
-  server.tool("show_processdetails", "Get process definition metadata", {
+  server.tool("show_processdetails", "Get process definition metadata including ordered action list", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     processId: z.string().describe("Process ID or name"),
-  }, async ({ workspaceId, modelId, processId }) => {
+    showImportDataSource: z.boolean().optional().describe("Include import data source details for IMPORT actions"),
+  }, async ({ workspaceId, modelId, processId, showImportDataSource }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const pId = await resolver.resolveProcess(wId, mId, processId);
-    const detail = await apis.processes.get(wId, mId, pId);
+    const detail = await apis.processes.get(wId, mId, pId, showImportDataSource ?? false);
     return { content: [{ type: "text", text: JSON.stringify(detail, null, 2) }] };
   });
 
@@ -429,6 +434,8 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
         { header: "Format", key: "formatDisplay" },
         { header: "Applies To", key: "appliesToDisplay" },
         { header: "Version", key: "versionDisplay" },
+        { header: "Notes", key: "notesDisplay" },
+        { header: "Code", key: "codeDisplay" },
         { header: "ID", key: "id" },
       ], "line items", { offset, limit, search });
     }

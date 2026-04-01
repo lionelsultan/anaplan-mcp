@@ -128,4 +128,61 @@ Different base URLs:
 - CloudWorks: `https://api.cloudworks.anaplan.com/2/0/`
 - Audit: `https://audit.anaplan.com/audit/api/1/`
 
-API documentation for all phases is saved in `docs/anaplan_documentation/` (`Integration_API.md`, `ALM_API.md`, `SCIM_API.md`, `Cloudworks_API.md`, `Audit_API.md`).
+API documentation for all phases is saved in `docs/api/` (`Integration_API.md`, `ALM_API.md`, `SCIM_API.md`, `Cloudworks_API.md`, `Audit_API.md`).
+
+Tool selection and workflow sequencing guidance is in `docs/guides/anaplan-tool-guide.md`.
+
+## Tool Selection — Quick Reference
+
+**Full guide:** `docs/guides/anaplan-tool-guide.md`
+
+### Tool Categories
+- **Exploration (37):** `show_*` tools + `get_list_items`, `lookup_dimensionitems` — read-only, safe anytime
+- **Bulk (26):** `run_*`, `upload_*`, `download_*`, `set_*`, `create_*`, `delete_*`, `cancel_*`, `open/close_model` — execute actions, mutate state
+- **Transactional (5):** `read_cells`, `write_cells`, `add/update/delete_list_items` — direct data reads/writes
+
+### Common Workflows
+
+**Discover model contents:**
+`show_workspaces` → `show_models` → `show_modules` / `show_lists` / `show_exports` / `show_imports`
+
+**Read data (≤1M cells):**
+`show_savedviews` → `read_cells`
+
+**Read data (>1M cells):**
+`create_view_readrequest` → poll `get_view_readrequest` → `get_view_readrequest_page` (all pages) → `delete_view_readrequest`
+
+**Export data:**
+`show_exports` → `run_export` (returns inline; `saveToDownloads=true` for file)
+
+**Import data:**
+`show_imports` → `show_importdetails` (check columns) → `show_files` → `run_import(fileId, csvData)`
+
+**Run a process:**
+`show_processes` → `run_process` → check nestedResults for per-step status
+
+**Write cell values:**
+`show_alllineitems` → `show_lineitem_dimensions` → `lookup_dimensionitems` → `write_cells`
+
+**Manage list items:**
+`show_lists` → `get_list_items` (get IDs) → `add/update/delete_list_items`
+
+**Debug failed import:**
+`show_tasks(actionType=imports)` → if `failureDumpAvailable=true` → `download_importdump`
+
+**Debug failed process:**
+`show_tasks(actionType=processes)` → get `objectId` from failed nestedResult → `download_processdump`
+
+**Delete models:**
+`close_model` (required first) → `bulk_delete_models`
+
+### Decision Rules
+1. **Name resolution order:** workspace → model → resource (chain each resolver call)
+2. **Standard vs large read:** ≤1M cells → `read_cells`; >1M → `create_view_readrequest` flow. Check `show_listmetadata` (itemCount) if unsure.
+3. **Export vs read_cells:** Use `run_export` when a pre-configured export exists; `read_cells` for ad-hoc view reads
+4. **Import vs write_cells:** `run_import` for bulk CSV loads; `write_cells` for targeted individual cell updates
+5. **Task polling:** `run_import/export/process` poll internally — only use `get_action_status` for externally-started tasks
+6. **update_list_items:** Must include `code` field if the item already has a code value (Anaplan returns 500 otherwise)
+7. **Destructive actions — always confirm first:** `delete_list_items`, `run_delete`, `delete_file`, `bulk_delete_models`, `set_currentperiod`, `set_fiscalyear`, `set_versionswitchover` are irreversible
+8. **Model state:** If getting unexpected errors, check `show_modelstatus` — may need `open_model` first
+9. **View dimension items:** Use `show_viewdimensionitems` when Selective Access may hide items; `show_dimensionitems` for all items unconditionally

@@ -47,10 +47,7 @@ export function createServer(): McpServer {
     workspaces, models, modules, lists, imports, exports, processes, files, actions,
   });
 
-  const server = new McpServer({
-    name: "anaplan-mcp",
-    version: "1.2.0",
-  });
+  const server = new McpServer({ name: "anaplan-mcp", version: "1.2.0" });
 
   registerExplorationTools(server, {
     workspaces, models, modules, lists, imports, exports, processes, files, actions, transactional, modelManagement, dimensions,

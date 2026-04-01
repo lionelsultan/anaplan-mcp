@@ -54,6 +54,14 @@ export class LargeReadsApi {
     return res.viewReadRequest ?? res;
   }
 
+  // --- List preview ---
+
+  async previewList(workspaceId: string, modelId: string, listId: string): Promise<string> {
+    return this.client.getRaw(
+      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/preview`
+    );
+  }
+
   // --- List read requests ---
 
   async createListReadRequest(

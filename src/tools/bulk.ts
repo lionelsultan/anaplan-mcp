@@ -401,6 +401,21 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     return { content: [{ type: "text" as const, text: `View read request ${requestId} deleted.` }] };
   });
 
+  server.tool("preview_list", "Preview up to 1000 records from a large list (CSV) before initiating a full large read request", {
+    workspaceId: z.string().describe("Anaplan workspace ID or name"),
+    modelId: z.string().describe("Anaplan model ID or name"),
+    listId: z.string().describe("List ID or name"),
+  }, async ({ workspaceId, modelId, listId }) => {
+    const wId = await resolver.resolveWorkspace(workspaceId);
+    const mId = await resolver.resolveModel(wId, modelId);
+    const lId = await resolver.resolveList(wId, mId, listId);
+    const text = await apis.largeReads.previewList(wId, mId, lId);
+    if (text.length > 50000) {
+      return { content: [{ type: "text" as const, text: text.slice(0, 50000) + `\n\n[Truncated - ${text.length} chars total]` }] };
+    }
+    return { content: [{ type: "text" as const, text }] };
+  });
+
   // Large volume reads - lists
   server.tool("create_list_readrequest", "Start a large volume list read request (for lists with >1M items)", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),

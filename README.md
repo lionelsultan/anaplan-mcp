@@ -326,8 +326,9 @@ src/
   index.ts    # Entry point (stdio transport)
 
 docs/
-  api_docs/   # Anaplan API reference docs (Integration, ALM, SCIM, CloudWorks, Audit)
+  api/        # Anaplan API reference docs (Integration, ALM, SCIM, CloudWorks, Audit)
   architecture/ # Runtime diagrams (request flow, trust boundary, subsystem map)
+  guides/     # Tool selection and workflow guides
 
 examples/     # Example output - FY26 Sales Forecast deck generated via MCP
 ```

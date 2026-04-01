@@ -12,11 +12,12 @@ export class ProcessesApi {
     );
   }
 
-  async get(workspaceId: string, modelId: string, processId: string) {
+  async get(workspaceId: string, modelId: string, processId: string, showImportDataSource = false) {
+    const query = showImportDataSource ? "?showImportDataSource=true" : "";
     const res = await this.client.get<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/processes/${processId}`
+      `/models/${modelId}/processes/${processId}${query}`
     );
-    return res.process ?? res;
+    return res.processMetadata ?? res.process ?? res;
   }
 
   async run(workspaceId: string, modelId: string, processId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
