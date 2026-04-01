@@ -605,39 +605,45 @@ html, body { width:100%; height:100%; overflow:hidden; background:var(--dark); f
   <div class="rail"></div>
   <div class="hdr">
     <p class="lbl">09 -- Governance</p>
-    <h2>Security &amp; Safety</h2>
-    <p class="sub">What stays local, what never leaves, and what the AI can and cannot do</p>
+    <h2>Security, Safety &amp; Limitations</h2>
+    <p class="sub">What's safe today, what's not ready for end users, and how we're addressing it</p>
   </div>
   <div class="body">
     <div class="sec" style="gap:22px;">
-      <div class="sc" style="gap:12px;">
-        <div class="scard" style="padding:16px 18px;">
-          <h3 style="font-size:.88vw;margin-bottom:6px;">Credentials never leave your machine</h3>
-          <p style="font-size:.78vw;">Server runs as a local subprocess over stdio. Your Anaplan credentials are used directly in API calls -- never sent to Claude's servers or any cloud relay.</p>
+      <div class="sc" style="gap:10px;">
+        <div class="scard" style="padding:14px 16px;border-left-color:var(--green);">
+          <h3 style="font-size:.82vw;margin-bottom:5px;color:var(--green);">What's safe today</h3>
+          <p style="font-size:.74vw;">Credentials never leave your machine -- local stdio process, never sent to Claude/Anthropic. Open source and fully auditable. Uses your existing Anaplan permissions, no elevated access.</p>
         </div>
-        <div class="scard" style="padding:16px 18px;">
-          <h3 style="font-size:.88vw;margin-bottom:6px;">Explicit intent required for writes</h3>
-          <p style="font-size:.78vw;">37 exploration tools are fully read-only. Write tools and job triggers only fire when the AI explicitly calls them -- with visible parameters you can review and approve.</p>
+        <div class="scard" style="padding:14px 16px;border-left-color:var(--green);">
+          <h3 style="font-size:.82vw;margin-bottom:5px;color:var(--green);">Claude Desktop prompts before every action</h3>
+          <p style="font-size:.74vw;">Every tool call shows parameters and requires user approval. You see exactly what will happen before it runs. "Allow for this chat" option for trusted tools.</p>
         </div>
-        <div class="scard" style="padding:16px 18px;">
-          <h3 style="font-size:.88vw;margin-bottom:6px;">Your existing credentials and permissions</h3>
-          <p style="font-size:.78vw;">No new service accounts, no elevated access. The server operates within whatever Anaplan permissions your account already has.</p>
+        <div class="scard" style="padding:14px 16px;border-left-color:var(--red);">
+          <h3 style="font-size:.82vw;margin-bottom:5px;color:#E88080;">Not safe for end users yet</h3>
+          <p style="font-size:.74vw;">The current server exposes <strong>all 70 tools</strong> -- including destructive ones. An end user could ask the AI to delete list items, overwrite cell data, run delete actions, close models, or change calendar settings. These are <strong>irreversible</strong> operations that should not be available to non-admin users.</p>
         </div>
-        <div class="scard" style="padding:16px 18px;">
-          <h3 style="font-size:.88vw;margin-bottom:6px;">Open source and fully auditable</h3>
-          <p style="font-size:.78vw;">The entire codebase is open source on GitHub. Every API call appears as a tool call in the AI chat before it runs.</p>
+        <div class="scard" style="padding:14px 16px;border-left-color:var(--red);">
+          <h3 style="font-size:.82vw;margin-bottom:5px;color:#E88080;">Risky tools that must be restricted</h3>
+          <p style="font-size:.74vw;line-height:1.6;"><span class="mono" style="font-size:.62vw;">write_cells</span> <span class="mono" style="font-size:.62vw;">delete_list_items</span> <span class="mono" style="font-size:.62vw;">run_delete</span> <span class="mono" style="font-size:.62vw;">run_import</span> <span class="mono" style="font-size:.62vw;">bulk_delete_models</span> <span class="mono" style="font-size:.62vw;">close_model</span> <span class="mono" style="font-size:.62vw;">set_currentperiod</span> <span class="mono" style="font-size:.62vw;">set_fiscalyear</span> <span class="mono" style="font-size:.62vw;">upload_file</span> <span class="mono" style="font-size:.62vw;">delete_file</span><br>These tools can modify or destroy production data. AI hallucination + write access = data loss risk.</p>
         </div>
       </div>
-      <div class="sc" style="gap:12px;">
-        <div class="sdg" style="padding:18px 18px;gap:10px;">
-          <div class="sdt" style="font-size:.75vw;margin-bottom:4px;">Data Flow -- What Goes Where</div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">Anaplan credentials (username / password / cert / OAuth)</div><div class="sb local" style="font-size:.64vw;padding:3px 9px;">Local only</div></div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">Auth token (Anaplan JWT, 35-min lifetime)</div><div class="sb auto" style="font-size:.64vw;padding:3px 9px;">Auto-refreshed</div></div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">Credentials sent to Claude / Anthropic</div><div class="sb never" style="font-size:.64vw;padding:3px 9px;">Never</div></div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">MCP server process location</div><div class="sb local" style="font-size:.64vw;padding:3px 9px;">Local stdio</div></div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">Tool call parameters (IDs, values, names)</div><div class="sb local" style="font-size:.64vw;padding:3px 9px;">Visible in chat</div></div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">Anaplan model data in API responses</div><div class="sb local" style="font-size:.64vw;padding:3px 9px;">Local only</div></div>
-          <div class="srow" style="padding:10px 12px;"><div class="sl" style="font-size:.76vw;">Write / run operations</div><div class="sb local" style="font-size:.64vw;padding:3px 9px;">Requires approval</div></div>
+      <div class="sc" style="gap:10px;">
+        <div class="sdg" style="padding:16px 16px;gap:8px;">
+          <div class="sdt" style="font-size:.72vw;margin-bottom:4px;">Data Flow</div>
+          <div class="srow" style="padding:8px 10px;"><div class="sl" style="font-size:.72vw;">Credentials (password / cert / OAuth)</div><div class="sb local" style="font-size:.6vw;padding:3px 8px;">Local only</div></div>
+          <div class="srow" style="padding:8px 10px;"><div class="sl" style="font-size:.72vw;">Auth token (35-min Anaplan JWT)</div><div class="sb auto" style="font-size:.6vw;padding:3px 8px;">Auto-refreshed</div></div>
+          <div class="srow" style="padding:8px 10px;"><div class="sl" style="font-size:.72vw;">Credentials to Claude / Anthropic</div><div class="sb never" style="font-size:.6vw;padding:3px 8px;">Never</div></div>
+          <div class="srow" style="padding:8px 10px;"><div class="sl" style="font-size:.72vw;">MCP server process</div><div class="sb local" style="font-size:.6vw;padding:3px 8px;">Local stdio</div></div>
+          <div class="srow" style="padding:8px 10px;"><div class="sl" style="font-size:.72vw;">Write / delete operations</div><div class="sb never" style="font-size:.6vw;padding:3px 8px;background:rgba(217,79,79,.1);color:#E88080;">Needs restriction</div></div>
+        </div>
+        <div class="scard" style="padding:14px 16px;border-left-color:var(--blue);">
+          <h3 style="font-size:.82vw;margin-bottom:5px;color:var(--blue);">Phase 2: End-User Safe Mode</h3>
+          <p style="font-size:.74vw;line-height:1.6;">A restricted variant of the server that only registers safe tools: exploration (37 tools), <span class="mono" style="font-size:.62vw;">read_cells</span>, <span class="mono" style="font-size:.62vw;">run_export</span>, and <span class="mono" style="font-size:.62vw;">get_list_items</span>. No writes, no deletes, no admin operations. Same codebase, different tool registration. Ready for business user rollout.</p>
+        </div>
+        <div class="scard" style="padding:14px 16px;border-left-color:var(--blue);">
+          <h3 style="font-size:.82vw;margin-bottom:5px;color:var(--blue);">Recommendation for today</h3>
+          <p style="font-size:.74vw;line-height:1.6;">Until Phase 2 ships: <strong>admins and model builders only</strong>. Use least-privilege credentials. Test in non-production workspaces. Review every write operation before approving.</p>
         </div>
       </div>
     </div>
