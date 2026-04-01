@@ -139,6 +139,44 @@ When exploring a model, use these prefixes to understand module purpose. REP/OUT
 - **FINDITEM**: Finds a list item by name (performance-heavy, avoid in large lists).
 - **COLLECT**: Builds a list from filtered data.
 
+### The Planual (Anaplan Best Practice Rules)
+
+The Planual is the official Anaplan best practice guide. Understanding these conventions helps interpret model structure when exploring with show_modules, show_lineitems, etc.
+
+**Module conventions (Chapter 2):**
+- Module names are brief with alphanumeric prefixes for ordering (e.g., "REV01 Price Book", "FIN03 P&L")
+- Modules are grouped by functional area (Revenue, Finance, Supply Chain), NOT by DISCO category
+- DISCO (Data/Input/System/Calculation/Output) describes module PURPOSE, not its name prefix
+- Empty modules are used as section separators in the module list
+- Each major hierarchy has a System module with standing data (code, parent, attributes)
+- Calculation modules keep summaries OFF by default -- only enable when needed
+- Dimensions should be in consistent order across modules for performance
+- Subsidiary views are avoided in calculation modules -- use separate modules with matching dimensionality instead
+
+**Line item conventions (Chapter 2):**
+- Summary options (Sum, Average, etc.) are OFF by default -- only enabled for user-facing output
+- Text-formatted line items are expensive (memory) -- models minimize text, prefer numbers/booleans
+- Header line items are set to "No Data" to avoid unnecessary calculations
+- Formulas are broken into separate line items for auditability (not combined into one complex formula)
+
+**List conventions (Chapter 1):**
+- Hierarchy lists use letter+level prefix: P1 Product Category, P2 Product Family, P3 Products
+- Lists should always have codes (more efficient for loading and integration)
+- Subsets are prefixed with the list name (e.g., "P3 Products: Active Products")
+- Line Item Subsets are prefixed with "LIS" (e.g., "LIS Revenue Items")
+- No emojis or special symbols in any naming (causes integration issues)
+
+**Integration conventions (Chapter 5):**
+- Import actions use numeric prefixes for sequencing: "1.1 Import Products", "1.2 Import Product Details"
+- Separate files for attributes vs transactional data -- don't combine
+- Data files have keys + values by dimension. Attribute files have codes + properties.
+- Pre-aggregate in the source system when possible (don't import granular data then aggregate in Anaplan)
+- Always import from saved views, never from default views or lists directly
+- Exports include only needed line items -- column count affects performance
+- Export views use single optimized filters (multiple filters are slow)
+- One-off import actions should be deleted after use to keep the model clean
+- Use processes to wrap related actions -- process actions auto-update when contents change
+
 ### Key Implications for Tool Usage
 1. **To get totals, read the top-level hierarchy item** -- don't loop through children.
 2. **Time rollups are automatic** -- read FY24 directly, don't sum Jan through Dec.
@@ -149,6 +187,8 @@ When exploring a model, use these prefixes to understand module purpose. REP/OUT
 7. **Upload data before importing** -- upload_file puts data into the model file, then run_import executes.
 8. **Processes are ordered chains** -- if one step fails, the rest don't run. Check nestedResults for per-step status.
 9. **Model state determines what operations are allowed** -- PRODUCTION models can't be structurally changed, ARCHIVED models must be opened first.
+10. **Module prefixes indicate purpose** -- REV/FIN/SUP = functional area. DAT/INP/SYS/CALC/REP = DISCO type. Use these to navigate large models efficiently.
+11. **Hierarchy lists use level prefixes** -- P1/P2/P3 = hierarchy depth. Higher number = more granular.
 
 ## MCP Server Concepts
 
