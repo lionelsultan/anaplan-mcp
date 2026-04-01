@@ -12,8 +12,9 @@ Read this guide before calling tools. Understanding Anaplan's data model is esse
 
 ### Lists and Hierarchies (Critical for Data Retrieval)
 - **Lists** are groups of items (Products, Customers, Regions). They define the dimensions of modules.
-- Lists are **hierarchical**. A list has a top-level item (e.g., "All Products") that is the aggregate of all children. Children can have their own children (e.g., Region > Country > City).
-- **The top-level item contains pre-computed rollup totals.** To get "total across all products", select the "All Products" item -- do NOT loop through each product and sum manually. Anaplan already computed it.
+- Lists are **hierarchical**. Every list has a top-level "All" item (e.g., "All Products") that contains the total of all children. Children can have their own children (e.g., Region > Country > City).
+- **The "All" item contains pre-computed totals.** To get "total across all products", select the "All Products" item -- do NOT loop through each product and sum manually. Anaplan already computed it.
+- The terms "All item", "top-level item", "aggregate", "summary", and "rollup" all mean the same thing: the parent item in a hierarchy that contains the total of its children.
 - Use show_listmetadata to find the topLevelItem. Use show_viewdimensionitems to see available items for a view dimension.
 - **Subsets** are filtered views of a list (e.g., "Active Products" subset of the Products list).
 
@@ -29,13 +30,13 @@ Read this guide before calling tools. Understanding Anaplan's data model is esse
   - **Rows**: items listed vertically (e.g., Products on rows = one row per product)
   - **Columns**: items listed horizontally (e.g., Time on columns = one column per month)
   - **Pages**: filter selectors. Only data for the selected page item is shown. When a dimension is on pages, you must select one item to view.
-- **Pages are NOT pagination.** They are dimension filters. If Products is on pages, you select ONE product (or "All Products" for the rollup). The API's pages parameter controls this: pages=[{dimensionId, itemId}].
+- **Pages are NOT pagination.** They are dimension filters. If Products is on pages, you select ONE product (or "All Products" for the total). The API's pages parameter controls this: pages=[{dimensionId, itemId}].
 - Use show_viewdetails to see which dimensions are on rows, columns, and pages.
 
 ### Time Dimension
 - Time is a built-in dimension present in every model. It has a hierarchy: Day > Week > Month > Quarter > Half-Year > Year.
 - The model calendar defines the fiscal year structure (Jan-Dec, Apr-Mar, etc.) and available time scales.
-- **Summary periods** (Q1, H1, FY24) are automatically computed rollups of their children, just like list hierarchies. To get annual totals, read the FY-level time period -- do not sum months manually.
+- **Summary periods** (Q1, H1, FY24) are the "All" items of the time hierarchy -- automatically computed totals, just like list hierarchies. To get annual totals, read the FY-level time period -- do not sum months manually.
 - **Current Period** marks where actuals end and forecast begins. It is used in formulas and version switchover.
 
 ### Versions
@@ -47,7 +48,7 @@ Read this guide before calling tools. Understanding Anaplan's data model is esse
 
 ### Summary Methods and Aggregation
 - Each line item has a **summary method** that controls how values roll up in hierarchies: Sum, Average, Min, Max, None, Formula, etc.
-- When you read a parent item (like "All Products"), the value you see is already computed by Anaplan using the summary method. You never need to aggregate manually.
+- When you read the "All" item (like "All Products"), the value is already computed by Anaplan using the summary method. You never need to aggregate manually.
 - Number line items default to Sum. Boolean line items default to Any. Text/Date/List default to FirstNonBlank.
 
 ### Workspaces and Tenants
@@ -178,7 +179,7 @@ The Planual is the official Anaplan best practice guide. Understanding these con
 - Use processes to wrap related actions -- process actions auto-update when contents change
 
 ### Key Implications for Tool Usage
-1. **To get totals, read the top-level hierarchy item** -- don't loop through children.
+1. **To get totals, read the "All" item** -- don't loop through children.
 2. **Time rollups are automatic** -- read FY24 directly, don't sum Jan through Dec.
 3. **Pages are dimension filters, not pagination** -- select the right item on each page dimension.
 4. **Versions are a dimension** -- if you need Actual vs Forecast, it's a page/row/column selection, not a separate API call.
@@ -225,7 +226,7 @@ Shortcut: Use show_allmodels to list models across all workspaces (no workspaceI
 \`\`\`
 
 **If read_cells returns a truncation warning** (>50K chars), the view is too large. DO NOT start looping per item. Instead:
-1. First try: add pages param to select top-level aggregates (e.g., "All Customers") to reduce data
+1. First try: add pages param to select the "All" item for each dimension (e.g., "All Customers") to reduce data
 2. If still too large: use maxRows to limit rows
 3. If still too large: use create_view_readrequest for large volume CSV download
 4. If an export action exists for this data: use run_export instead
@@ -247,7 +248,7 @@ Shortcut: Use show_allmodels to list models across all workspaces (no workspaceI
 
 When the user asks for a report "for all products", "across all customers", or "by region":
 
-**"All [dimension]" means:** Leave that dimension on rows/columns to show every item. Lock the OTHER page dimensions to their "All" (top-level aggregate) item. Do NOT loop through individual items. Do NOT use TABULAR_MULTI_COLUMN. Use two targeted read_cells calls maximum -- one per dimension breakdown needed.
+**"All [dimension]" means:** Leave that dimension on rows/columns to show every item. Lock the OTHER page dimensions to their "All" item (the top-level total). Do NOT loop through individual items. Do NOT use TABULAR_MULTI_COLUMN. Two targeted read_cells calls maximum -- one per dimension breakdown needed.
 
 **Step-by-step:**
 \`\`\`
@@ -256,21 +257,21 @@ When the user asks for a report "for all products", "across all customers", or "
 2. For "report for all products and all customers":
    Call 1 - Product breakdown:
      read_cells(pages: [{customersId, "All Customers" itemId}])
-     -> Products stays on its axis, customers locked to aggregate. One call.
+     -> Products stays on its axis, customers locked to "All" item. One call.
 
    Call 2 - Customer breakdown:
      read_cells(pages: [{productsId, "All Products" itemId}])
-     -> Customers stays on its axis, products locked to aggregate. One call.
+     -> Customers stays on its axis, products locked to "All" item. One call.
 
    That's it. Two calls. Not 40.
 
 3. For "report for all products" (single dimension):
    read_cells(pages: [{customersId, "All Customers" itemId}])
-   -> One call. All products visible, customers aggregated.
+   -> One call. All products visible, customers locked to "All" item.
 
 4. For grand total only:
    read_cells(pages: [{productsId, "All Products" itemId}, {customersId, "All Customers" itemId}])
-   -> One call. Both dimensions aggregated to top level.
+   -> One call. Both dimensions locked to their "All" item.
 \`\`\`
 
 **If a call returns truncated data** (>50K chars), the view has too many time periods or line items. Solutions:
@@ -282,7 +283,7 @@ When the user asks for a report "for all products", "across all customers", or "
 - NEVER call read_cells in a loop per list item. Not for 5 items, not for 50.
 - NEVER use exportType TABULAR_MULTI_COLUMN for reports -- it explodes the response size.
 - Two calls maximum for a two-dimension report. One call for single dimension.
-- Find "All" item IDs from show_viewdimensionitems or show_listmetadata (topLevelItem).
+- Find "All" item IDs: use show_viewdimensionitems (first item is usually the "All" item) or show_listmetadata (topLevelItem field).
 
 ## Workflow 3: Write Cell Data
 
@@ -411,27 +412,27 @@ actionType must be one of: imports, exports, processes, actions.
 
 ## Anaplan List Hierarchies and Aggregation
 
-Anaplan lists are hierarchical. Every list has a top-level item (e.g., "All Products", "All Customers") that already contains the aggregated total of all children. You do NOT need to read each child item individually.
+Anaplan lists are hierarchical. Every list has an "All" item (e.g., "All Products", "All Customers") that contains the pre-computed total of all children. You do NOT need to read each child item individually.
 
-**Key principle:** To get "all products" data, select the top-level aggregate item on the pages dimension. Anaplan has already computed the rollup. One API call, not N calls.
+**Key principle:** To get "all products" data, select the "All Products" item on the pages dimension. Anaplan has already computed the total. One API call, not N calls.
 
-**How to find the top-level item:**
+**How to find the "All" item:**
 \`\`\`
 1. show_viewdetails -> find which dimensions are on pages
-2. show_viewdimensionitems(modelId, viewId, dimensionId) -> first item is usually the top-level aggregate
-   OR show_listmetadata -> topLevelItem field tells you the aggregate item
+2. show_viewdimensionitems(modelId, viewId, dimensionId) -> first item is usually the "All" item
+   OR show_listmetadata -> topLevelItem field gives you the "All" item
 \`\`\`
 
 **Examples using the pages parameter on read_cells:**
 
-"Report for all products, all customers" (summary totals):
+"Report for all products, all customers" (grand total):
 \`\`\`
 read_cells(view, pages: [
   { dimensionId: productsId, itemId: allProductsItemId },
   { dimensionId: customersId, itemId: allCustomersItemId }
 ])
 \`\`\`
--> One call. Returns the pre-aggregated totals.
+-> One call. Returns the grand total.
 
 "Report by each product, across all customers":
 \`\`\`
@@ -461,7 +462,7 @@ read_cells(view, pages: [
 ## Decision Rules: read_cells vs run_export
 
 **Use read_cells when:**
-- Reading a specific slice of data using page selections (top-level aggregates or specific items)
+- Reading a specific slice of data using page selections ("All" items or specific items)
 - You need JSON format for programmatic processing
 - The view has < 1M cells
 
@@ -470,7 +471,7 @@ read_cells(view, pages: [
 - You need CSV format with a specific layout (tabular, grid)
 - The data is too large for read_cells (> 1M cells or > 50K chars in response)
 
-**NEVER do this:** Call read_cells in a loop for each dimension member (e.g., once per product, once per customer). Anaplan aggregates data at the hierarchy top level -- select the "All" item on pages instead. If you need all individual items, read the view once with no page filter or use run_export.
+**NEVER do this:** Call read_cells in a loop for each dimension member (e.g., once per product, once per customer). Anaplan pre-computes totals in the "All" item -- select it on pages instead. If you need all individual items, read the view once with no page filter or use run_export.
 
 ## Common Patterns
 
