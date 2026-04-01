@@ -5,7 +5,7 @@ import type { NameResolver } from "../resolver.js";
 
 // Cell write dimensions max: 21 per intersection (ls21)
 export function registerTransactionalTools(server: McpServer, api: TransactionalApi, resolver: NameResolver) {
-  server.tool("read_cells", "Read cell data from a module view. The viewId can be a saved view ID (from show_savedviews) or the moduleId itself (which reads the default view). For views with >1M cells, use create_view_readrequest instead.", {
+  server.tool("read_cells", "Read cell data from a module view. Use the pages param to select specific page dimensions (get dimensionId/itemId from show_viewdetails and show_viewdimensionitems). viewId can be a saved view (from show_savedviews) or moduleId (default view). For >1M cells, use create_view_readrequest instead.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     moduleId: z.string().describe("Module ID or name"),
@@ -23,7 +23,7 @@ export function registerTransactionalTools(server: McpServer, api: Transactional
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   });
 
-  server.tool("write_cells", "Write values to specific cells. Supports both ID-based and name-based targeting. Use show_lineitem_dimensions for dimensionIds, then show_dimensionitems or lookup_dimensionitems for itemIds.", {
+  server.tool("write_cells", "Write values to specific cells. Supports both ID-based and name-based targeting: use lineItemName/dimensionName/itemName instead of IDs to skip the dimension resolution chain. For ID-based writes, use show_lineitem_dimensions then show_dimensionitems.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     moduleId: z.string().describe("Module ID or name"),
@@ -47,7 +47,7 @@ export function registerTransactionalTools(server: McpServer, api: Transactional
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   });
 
-  server.tool("add_list_items", "Add new items to a list. Use show_lists to find listId. Item names must be unique within the list.", {
+  server.tool("add_list_items", "Add new items to a list. Supports parent (hierarchy placement) and subsets (subset membership). Use show_lists to find listId. Item names must be unique.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     listId: z.string().describe("List ID or name"),
@@ -86,7 +86,7 @@ export function registerTransactionalTools(server: McpServer, api: Transactional
     return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
   });
 
-  server.tool("delete_list_items", "Remove items from a list (WARNING: irreversible). Use get_list_items to find item IDs.", {
+  server.tool("delete_list_items", "Remove items from a list (WARNING: irreversible). Specify id or code for each item. Use get_list_items to find values.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     listId: z.string().describe("List ID or name"),

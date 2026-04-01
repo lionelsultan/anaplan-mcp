@@ -31,9 +31,12 @@ Shortcut: Use show_allmodels to list models across all workspaces (no workspaceI
 2. [Optional] show_savedviews(workspaceId, modelId, moduleId) -> get viewId
 3. read_cells(workspaceId, modelId, moduleId, viewId)
    - viewId can be a saved view ID OR the moduleId itself (default view)
+   - Use pages param to filter by page dimensions: pages=[{dimensionId, itemId}]
+     Get page dimension IDs from show_viewdetails, item IDs from show_viewdimensionitems
+   - Use maxRows to limit output size
 \`\`\`
 
-If read_cells returns a truncation warning, the data exceeds 50,000 characters. Use a more filtered view or switch to large volume reads.
+If read_cells returns a truncation warning, the data exceeds 50,000 characters. Use pages to filter, maxRows to limit, or switch to large volume reads.
 
 **Large volume read (> 1M cells):**
 \`\`\`
@@ -49,19 +52,34 @@ If read_cells returns a truncation warning, the data exceeds 50,000 characters. 
 
 ## Workflow 3: Write Cell Data
 
-Writing cells requires precise dimension coordinates. Follow this sequence:
+Two approaches: name-based (simpler) or ID-based (when you already have IDs).
 
+**Name-based write (recommended -- no prerequisite calls needed):**
+\`\`\`
+write_cells(workspaceId, modelId, moduleId, data=[{
+  lineItemName: "Revenue",
+  dimensions: [
+    { dimensionName: "Product", itemName: "Laptops" },
+    { dimensionName: "Time", itemName: "Jan 24" },
+    { dimensionName: "Version", itemName: "Actual" }
+  ],
+  value: 50000
+}])
+\`\`\`
+
+**ID-based write (use when you already resolved IDs):**
 \`\`\`
 1. show_lineitems(workspaceId, modelId, moduleId) -> get lineItemId
 2. show_lineitem_dimensions(modelId, lineItemId) -> get dimensionIds
 3. For each dimensionId:
    show_dimensionitems(modelId, dimensionId) -> get itemIds
    OR lookup_dimensionitems(workspaceId, modelId, dimensionId, names/codes)
-4. write_cells(workspaceId, modelId, moduleId, lineItemId, data)
-   where data = [{ dimensions: [{ dimensionId, itemId }, ...], value }]
+4. write_cells(workspaceId, modelId, moduleId, data=[{
+     lineItemId, dimensions: [{ dimensionId, itemId }, ...], value
+   }])
 \`\`\`
 
-Note: show_lineitem_dimensions, show_dimensionitems are ID-only tools (require model ID, not name).
+Note: ID-only tools (show_lineitem_dimensions, show_dimensionitems) require model ID, not name.
 
 ## Workflow 4: Run an Import
 
@@ -71,6 +89,7 @@ Note: show_lineitem_dimensions, show_dimensionitems are ID-only tools (require m
 3. show_files(workspaceId, modelId) -> find the source fileId
 4. upload_file(workspaceId, modelId, fileId, data) -> upload CSV/JSON data
 5. run_import(workspaceId, modelId, importId, fileId, data)
+   - Optional: mappingParameters=[{entityType:"Version", entityName:"Actual"}]
    -> returns task result with taskId
 6. [If task is async] get_action_status(workspaceId, modelId, "imports", importId, taskId)
    -> poll until taskState is COMPLETE or FAILED

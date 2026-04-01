@@ -75,7 +75,7 @@ function enrichLineItems(items: any[]) {
 }
 
 export function registerExplorationTools(server: McpServer, apis: ExplorationApis, resolver: NameResolver) {
-  server.tool("show_workspaces", "List all accessible Anaplan workspaces. Start here to find workspaceId, then use show_models to explore models.", {
+  server.tool("show_workspaces", "List all accessible Anaplan workspaces. Use tenantDetails=true for size/quota info. Start here, then use show_models.", {
     ...paginationParams,
     tenantDetails: z.boolean().optional().describe("Include workspace size and quota information"),
   }, async ({ limit, search, tenantDetails }) => {
@@ -90,7 +90,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     );
   });
 
-  server.tool("show_models", "List models in a workspace. Returns model IDs needed by most tools. Use show_modules next to explore a model's structure.", {
+  server.tool("show_models", "List models in a workspace. Filter by state param (PRODUCTION, UNLOCKED, etc). Use modelDetails=true for memory/dates. Use show_modules next.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     state: z.enum(["UNLOCKED", "PRODUCTION", "ARCHIVED", "LOCKED", "MAINTENANCE", "PRODUCTION_MAINTENANCE"]).optional().describe("Filter by model state"),
     modelDetails: z.boolean().optional().describe("Include memory usage, creation date, and last modified"),
@@ -214,7 +214,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     );
   });
 
-  server.tool("show_savedviews", "List saved views in a module. View IDs are needed for read_cells. Tip: the moduleId itself works as the default view ID.", {
+  server.tool("show_savedviews", "List saved views in a module. Use includeSubsidiaryViews=true for unsaved subsidiary views. View IDs needed for read_cells. Tip: moduleId works as default viewId.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     moduleId: z.string().describe("Anaplan module ID or name"),
@@ -242,7 +242,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     return tableResult(lists, [{ header: "Name", key: "name" }, { header: "ID", key: "id" }], "dimensions", { limit, search });
   });
 
-  server.tool("get_list_items", "Get items in a list. Returns item IDs needed for write_cells dimension coordinates. For lists with >1M items, use create_list_readrequest instead.", {
+  server.tool("get_list_items", "Get items in a list. Use includeAll=true for subsets, properties, and selective access details. Returns item IDs for write_cells. For >1M items, use create_list_readrequest.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     listId: z.string().describe("Anaplan list ID or name"),
@@ -359,7 +359,7 @@ export function registerExplorationTools(server: McpServer, apis: ExplorationApi
     return { content: [{ type: "text", text: JSON.stringify(workspace, null, 2) }] };
   });
 
-  server.tool("show_allmodels", "List all models across all workspaces. Returns model IDs needed by ID-only tools like show_allviews and show_alllineitems.", {
+  server.tool("show_allmodels", "List all models across all workspaces. Filter by state param (PRODUCTION, UNLOCKED, etc). Use modelDetails=true for memory/dates. Returns IDs needed by ID-only tools.", {
     state: z.enum(["UNLOCKED", "PRODUCTION", "ARCHIVED", "LOCKED", "MAINTENANCE", "PRODUCTION_MAINTENANCE"]).optional().describe("Filter by model state"),
     modelDetails: z.boolean().optional().describe("Include memory usage, creation date, and last modified"),
     ...paginationParams,

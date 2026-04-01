@@ -101,7 +101,7 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     return { content: [{ type: "text", text: `${preview}${prompt}` }] };
   });
 
-  server.tool("run_import", "Upload CSV/JSON data to a file, then execute an import action. Prerequisites: show_imports to find importId, show_files to find fileId. Check results with get_action_status; use download_importdump for failure details.", {
+  server.tool("run_import", "Upload CSV/JSON data to a file, then execute an import action. Use mappingParameters to target a specific dimension (e.g., import into 'Actual' version). Prerequisites: show_imports for importId, show_files for fileId. Check results with get_action_status; download_importdump for failures.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     importId: z.string().describe("Import action ID or name (from show_imports)"),
@@ -124,7 +124,7 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     );
   });
 
-  server.tool("run_process", "Execute a process (chain of imports/exports/deletes). Use show_processes first to find processId. Monitor with get_action_status; use download_processdump for failure details.", {
+  server.tool("run_process", "Execute a process (chain of imports/exports/deletes). Use mappingParameters to target a specific dimension at runtime. Use show_processes first. Monitor with get_action_status; download_processdump for failures.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     processId: z.string().describe("Process ID or name (from show_processes)"),
@@ -156,7 +156,7 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     return { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
   });
 
-  server.tool("upload_file", "Upload CSV or text data to an Anaplan file (overwrites existing content). Typically followed by run_import. Use show_files to find the fileId.", {
+  server.tool("upload_file", "Upload CSV or text data to an Anaplan file (overwrites existing). Use compress=true for large files (>50MB). Typically followed by run_import. Use show_files for fileId.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     fileId: z.string().describe("Anaplan file ID or name (from show_files)"),
@@ -203,7 +203,7 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     return { content: [{ type: "text", text: `File ${fId} deleted successfully.` }] };
   });
 
-  server.tool("get_action_status", "Check status of a running task. Poll this until taskState is COMPLETE or FAILED. taskId comes from the response of run_import, run_export, run_process, or run_delete.", {
+  server.tool("get_action_status", "Check status of a running task. Poll until taskState is COMPLETE or FAILED. Use includeProcessDetails=true for step timing. taskId from run_* response.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     actionType: z.enum(["imports", "exports", "processes", "actions"]).describe("Type of action"),
