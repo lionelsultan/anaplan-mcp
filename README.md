@@ -7,7 +7,7 @@
 # Anaplan MCP
 ### Unofficial MCP server for Anaplan
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 68 structured tools, using your existing Anaplan credentials and permissions.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 69 structured tools, using your existing Anaplan credentials and permissions.
 
 Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client. Includes a built-in orchestration guide that teaches the AI assistant the correct tool sequences for every workflow.
 
@@ -211,7 +211,7 @@ You only need one set of credentials. If multiple are configured, the server pic
 
 ### What the server can do
 
-This server has **full access** to whatever your Anaplan credentials allow. The 68 tools cover both read and write operations:
+This server has **full access** to whatever your Anaplan credentials allow. The 69 tools cover both read and write operations:
 
 - **Read-only tools** (safe to use freely): `show_*` tools, `read_cells`, `get_list_items`, `download_file`, `get_action_status`
 - **Write tools** (modify data): `write_cells`, `add_list_items`, `update_list_items`, `delete_list_items`
@@ -238,8 +238,8 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 |------|-------------|
 | `show_workspaces` | List all accessible workspaces<br>`GET /workspaces` |
 | `show_workspacedetails` | Get workspace details (size and active status)<br>`GET /workspaces/{workspaceId}` |
-| `show_models` | List models in a workspace<br>`GET /workspaces/{workspaceId}/models` |
-| `show_allmodels` | List all models across all workspaces<br>`GET /models` |
+| `show_models` | List models in a workspace. Optional `state` filter: UNLOCKED, PRODUCTION, ARCHIVED, LOCKED, MAINTENANCE, PRODUCTION_MAINTENANCE<br>`GET /workspaces/{workspaceId}/models` |
+| `show_allmodels` | List all models across all workspaces. Optional `state` filter: UNLOCKED, PRODUCTION, ARCHIVED, LOCKED, MAINTENANCE, PRODUCTION_MAINTENANCE<br>`GET /models` |
 | `show_modeldetails` | Get model details including state and workspace<br>`GET /models/{modelId}` |
 | `show_modelstatus` | Check model status (legacy endpoint, often returns 405)<br>`POST /workspaces/{workspaceId}/models/{modelId}/status` |
 | `show_modules` | List modules in a model<br>`GET /workspaces/{workspaceId}/models/{modelId}/modules` |
@@ -274,7 +274,7 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 | `show_userdetails` | Get user details by ID<br>`GET /users/{userId}` |
 | `show_tasks` | List task history for imports/exports/processes/actions<br>`GET /workspaces/{workspaceId}/models/{modelId}/{actionType}/{actionId}/tasks` |
 
-### Bulk Data Operations (26 tools)
+### Bulk Data Operations (27 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -299,6 +299,7 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 | `get_view_readrequest` | Get large-volume view read request status<br>`GET .../views/{viewId}/readRequests/{requestId}` |
 | `get_view_readrequest_page` | Download a CSV page from view read request<br>`GET .../views/{viewId}/readRequests/{requestId}/pages/{pageNo}` |
 | `delete_view_readrequest` | Delete large-volume view read request<br>`DELETE .../views/{viewId}/readRequests/{requestId}` |
+| `preview_list` | Preview up to 1000 records from a large list (CSV) before a full large read request<br>`GET .../lists/{listId}/readRequests/preview` |
 | `create_list_readrequest` | Create large-volume list read request<br>`POST .../lists/{listId}/readRequests` |
 | `get_list_readrequest` | Get large-volume list read request status<br>`GET .../lists/{listId}/readRequests/{requestId}` |
 | `get_list_readrequest_page` | Download a CSV page from list read request<br>`GET .../lists/{listId}/readRequests/{requestId}/pages/{pageNo}` |
