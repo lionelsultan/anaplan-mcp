@@ -11,6 +11,13 @@ const PORT = parseInt(process.env.PORT || process.env.MCP_PORT || "3000", 10);
 const transports: Record<string, StreamableHTTPServerTransport> = {};
 
 const app = express();
+
+// Log ALL requests to see what Claude Web actually sends
+app.use((req, _res, next) => {
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.path} accept=${req.headers["accept"] ?? "none"} origin=${req.headers["origin"] ?? "none"} session=${req.headers["mcp-session-id"] ?? "none"}`);
+  next();
+});
+
 app.use(express.json());
 
 // CORS for browser-based clients (Claude Web)
