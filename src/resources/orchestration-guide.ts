@@ -302,45 +302,74 @@ write_cells(workspaceId, modelId, moduleId, data=[{
 }])
 \`\`\`
 
-**ID-based write (use when you already resolved IDs):**
+**ID-based write (full prerequisite chain):**
+This is the explicit prerequisite chain when you need to discover IDs from scratch. Each step depends on the previous.
 \`\`\`
-1. show_lineitems(workspaceId, modelId, moduleId) -> get lineItemId
-2. show_lineitem_dimensions(modelId, lineItemId) -> get dimensionIds
-3. For each dimensionId:
-   show_dimensionitems(modelId, dimensionId) -> get itemIds
-   OR lookup_dimensionitems(workspaceId, modelId, dimensionId, names/codes)
-4. write_cells(workspaceId, modelId, moduleId, data=[{
+1. show_modules(workspaceId, modelId) -> get moduleId
+2. show_alllineitems(modelId) or show_lineitems(workspaceId, modelId, moduleId)
+   -> get lineItemId for the target measure (e.g., "Revenue")
+3. show_lineitem_dimensions(modelId, lineItemId)
+   -> get dimensionIds (e.g., Products, Time, Versions) -- this tells you which dimensions the line item uses
+4. For each dimensionId:
+   lookup_dimensionitems(workspaceId, modelId, dimensionId, names=["Product Z"])
+   -> resolves human-readable names to itemIds in one call
+   OR show_dimensionitems(modelId, dimensionId) -> browse all items, then pick the right ones
+5. write_cells(workspaceId, modelId, moduleId, data=[{
      lineItemId, dimensions: [{ dimensionId, itemId }, ...], value
    }])
 \`\`\`
 
-Note: ID-only tools (show_lineitem_dimensions, show_dimensionitems) require model ID, not name.
+**Key points:**
+- Name-based write is simpler and recommended when you know the exact names of line items and dimension items.
+- ID-based write is necessary when names are ambiguous or when you need to validate available items first.
+- ID-only tools (show_lineitem_dimensions, show_dimensionitems, show_alllineitems) require the 32-char hex model ID, not a name. Use show_models first to get it.
+- lookup_dimensionitems is the fastest way to resolve a few known names to IDs -- prefer it over show_dimensionitems when you already know the item names.
 
 ## Workflow 4: Run an Import
 
+**Typical flow (run_import handles upload internally):**
 \`\`\`
 1. show_imports(workspaceId, modelId) -> get importId
-2. show_importdetails(workspaceId, modelId, importId) -> see source file and column mapping
-3. show_files(workspaceId, modelId) -> find the source fileId
-4. upload_file(workspaceId, modelId, fileId, data) -> upload CSV/JSON data
-5. run_import(workspaceId, modelId, importId, fileId, data)
-   - Optional: mappingParameters=[{entityType:"Version", entityName:"Actual"}]
-   -> returns task result with taskId
-6. [If task is async] get_action_status(workspaceId, modelId, "imports", importId, taskId)
-   -> poll until taskState is COMPLETE or FAILED
-7. [If failed] download_importdump(workspaceId, modelId, importId, taskId)
-   -> get CSV with error details (available ~48 hours)
+2. show_importdetails(workspaceId, modelId, importId)
+   -> see source fileId, column headers, and expected format
+3. show_files(workspaceId, modelId) -> confirm the source fileId matches
+4. run_import(workspaceId, modelId, importId, fileId, csvData)
+   - run_import INTERNALLY uploads the csvData to the file, then executes the import action
+   - You do NOT need to call upload_file separately -- run_import handles both steps
+   - Optional: mappingParameters=[{entityType:"Version", entityName:"Actual"}] to override dimension mappings
+   -> polls until complete, returns task result with success/ignored/failure counts
+5. [If failed] download_importdump(workspaceId, modelId, importId, taskId)
+   -> get CSV with row-level error details (available ~48 hours)
+\`\`\`
+
+**When to call upload_file separately:**
+- When you want to upload a file without immediately running an import (e.g., preparing data for a later process run)
+- When the import is part of a process and you need the file uploaded before calling run_process
+- When you need to upload data to a file that multiple imports share
+
+**Debugging a failed import:**
+\`\`\`
+1. show_tasks(workspaceId, modelId, actionType="imports", actionId=importId)
+   -> find the taskId where taskState=COMPLETE but successful=false
+2. Check if failureDumpAvailable=true in the task result
+3. download_importdump(workspaceId, modelId, importId, taskId)
+   -> CSV with row-level error details
 \`\`\`
 
 ## Workflow 5: Run an Export
 
-run_export handles the full lifecycle (run + wait + download) in one call:
+run_export is a fully self-contained tool -- it handles the entire lifecycle (execute task, poll for completion, download all file chunks, return data) in one call:
 
 \`\`\`
-1. show_exports(workspaceId, modelId) -> get exportId
-2. run_export(workspaceId, modelId, exportId)
-   -> returns data inline (optionally saves to ~/Downloads with saveToDownloads=true)
+1. show_exports(workspaceId, modelId) -> find the export action and get exportId
+2. [Optional] show_exportdetails(workspaceId, modelId, exportId)
+   -> check exportFormat, headerNames, rowCount estimate before running
+3. run_export(workspaceId, modelId, exportId)
+   -> returns data inline (truncated at 50k chars)
+   -> set saveToDownloads=true and optional fileName to save the full file to ~/Downloads
 \`\`\`
+
+**No prerequisites beyond knowing the exportId.** Unlike imports, exports don't require file uploads or multi-step setup. The export definition in the model already specifies the source view, format, and layout.
 
 ## Workflow 6: Run a Process
 
@@ -358,13 +387,18 @@ run_export handles the full lifecycle (run + wait + download) in one call:
 
 \`\`\`
 1. show_lists(workspaceId, modelId) -> get listId
-2. get_list_items(workspaceId, modelId, listId) -> see existing items and IDs
+2. get_list_items(workspaceId, modelId, listId) -> see existing items, IDs, and codes
 3. add_list_items(workspaceId, modelId, listId, items)
    OR update_list_items(workspaceId, modelId, listId, items)
    OR delete_list_items(workspaceId, modelId, listId, items)
 \`\`\`
 
-Important: When updating an item that has a code value, you MUST include the code field in the update payload or Anaplan returns a 500 error.
+**Critical: update_list_items and the code field:**
+When updating an item that already has a \`code\` value, you MUST include the \`code\` field in the update payload. Omitting it causes Anaplan to return an HTTP 500 error. Always call get_list_items first to check which items have codes, then include those codes in the update.
+
+**Delete list items:** Identify items by \`id\` or \`code\`, not both. Pass an array like \`[{id: "..."}, {id: "..."}]\`.
+
+**Numbered lists:** Items have auto-generated names. Always use \`code\` (not \`name\`) to identify items in add/update/delete operations.
 
 For lists with > 1M items, use the large volume list read workflow:
 \`\`\`
@@ -482,4 +516,43 @@ read_cells(view, pages: [
 **View module structure before reading**: show_moduledetails returns the default view's row/column/page dimension layout. This tells you what data read_cells will return.
 
 **Explore view dimensions**: show_viewdetails(workspaceId, modelId, moduleId, viewId) shows row, column, and page dimensions for any view. Use show_viewdimensionitems to see the items in each dimension.
+
+## Tool Dependency Reference: Standalone vs Prerequisites Required
+
+**Truly standalone tools (no prerequisites):**
+- show_workspaces, show_allmodels, show_currentuser, show_users -- work with zero prior context
+- show_models, show_modules, show_lists, show_imports, show_exports, show_processes, show_actions, show_files -- only need workspaceId + modelId (which accept names)
+- read_cells -- can use moduleId as viewId (default view), so only needs workspace + model + module names
+- run_export -- only needs workspace + model + export name (fully self-contained after that)
+- write_cells with name-based data -- only needs workspace + model + module name + human-readable line item/dimension/item names
+
+**Tools that require prerequisite discovery:**
+- write_cells with ID-based data: needs show_alllineitems -> show_lineitem_dimensions -> lookup_dimensionitems chain
+- run_import: needs show_importdetails to find the source fileId and expected columns
+- download_importdump / download_processdump: needs show_tasks to get taskId (and objectId for processes)
+- show_viewdetails / show_viewdimensionitems: needs viewId from show_savedviews or show_allviews
+- create_view_readrequest / large read flow: needs viewId
+- set_versionswitchover: needs versionId from show_versions
+- bulk_delete_models: models must be closed first via close_model
+- cancel_task: needs taskId from show_tasks
+
+## Session Handling for Remote MCP (Claude Web / Claude Desktop)
+
+When using this MCP server through Claude Web or Claude Desktop (remote transport), be aware of session lifecycle:
+
+**Session timeout behavior:**
+- The MCP server maintains an active connection with cached auth tokens and resolved names.
+- If the underlying transport connection drops (network interruption, server restart, idle timeout), the session becomes stale.
+- Stale sessions manifest as tools suddenly failing with connection errors, auth errors, or unexpected empty responses mid-conversation.
+
+**What to do when tools start failing mid-conversation:**
+1. If a single tool fails, retry it once -- transient network errors do happen.
+2. If multiple tools fail in succession, the session is likely stale.
+3. Start a new chat/conversation to get a fresh MCP session with a new auth token.
+4. Do NOT keep retrying in the same conversation -- each failed call wastes time and tokens.
+
+**Best practices for long conversations:**
+- Front-load discovery calls (show_workspaces, show_models, show_modules) early when the session is fresh.
+- Save important IDs (workspaceId, modelId) in the conversation so they can be reused in a new session if needed.
+- For multi-step workflows (import, large read), complete the entire sequence without long pauses between steps.
 `;
