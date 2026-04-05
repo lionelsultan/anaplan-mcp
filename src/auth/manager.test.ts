@@ -15,8 +15,10 @@ describe("AuthManager", () => {
     delete process.env.ANAPLAN_OAUTH_REDIRECT_URI;
   });
 
-  it("throws if no credentials are configured", () => {
-    expect(() => AuthManager.fromEnv()).toThrow("No Anaplan credentials");
+  it("returns deferred provider when no credentials are configured", async () => {
+    const manager = AuthManager.fromEnv();
+    expect(manager.getProviderType()).toBe("none");
+    await expect(manager.getAuthHeaders()).rejects.toThrow("No Anaplan credentials");
   });
 
   it("selects basic auth when username/password are set", () => {

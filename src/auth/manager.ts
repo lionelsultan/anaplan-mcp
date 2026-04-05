@@ -5,6 +5,15 @@ import { OAuthProvider, type AuthorizationCodeOptions } from "./oauth.js";
 
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
 
+const NO_CREDS_MSG =
+  "No Anaplan credentials configured. Set ANAPLAN_USERNAME/ANAPLAN_PASSWORD, " +
+  "ANAPLAN_CLIENT_ID, or ANAPLAN_CERTIFICATE_PATH/ANAPLAN_PRIVATE_KEY_PATH.";
+
+class DeferredAuthProvider implements AuthProvider {
+  authenticate(): Promise<TokenInfo> { throw new Error(NO_CREDS_MSG); }
+  refresh(): Promise<TokenInfo> { throw new Error(NO_CREDS_MSG); }
+}
+
 export class AuthManager {
   private token: TokenInfo | null = null;
   private readonly provider: AuthProvider;
@@ -45,10 +54,7 @@ export class AuthManager {
       return new AuthManager(new BasicAuthProvider(username, password), "basic");
     }
 
-    throw new Error(
-      "No Anaplan credentials configured. Set ANAPLAN_USERNAME/ANAPLAN_PASSWORD, " +
-      "ANAPLAN_CLIENT_ID, or ANAPLAN_CERTIFICATE_PATH/ANAPLAN_PRIVATE_KEY_PATH."
-    );
+    return new AuthManager(new DeferredAuthProvider(), "none");
   }
 
   getProviderType(): string {
