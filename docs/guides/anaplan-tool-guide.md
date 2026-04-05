@@ -79,10 +79,10 @@ This guide maps common questions and tasks to the correct MCP tool sequences. Us
 | Tool | Purpose | Notes |
 |------|---------|-------|
 | `run_export` | Execute export, return data inline | Polls until complete. Use `saveToDownloads=true` to save file locally. |
-| `run_import` | Upload data then execute import | Combines `upload_file` + task execution. |
+| `run_import` | Upload data then execute import | Internally handles upload + task execution. No need to call `upload_file` separately. |
 | `run_process` | Execute a process (chained actions) | Returns nestedResults per step. |
 | `run_delete` | Execute a delete action | Irreversible. |
-| `upload_file` | Upload CSV/text to an Anaplan file | Required before `run_import` if data is new. |
+| `upload_file` | Upload CSV/text to an Anaplan file | Use standalone when preparing data for a process, or when multiple imports share a file. Not needed before `run_import`. |
 | `download_file` | Download file content | Returns text (truncated at 50k chars). |
 | `delete_file` | Delete a private file | Irreversible. |
 
@@ -168,15 +168,28 @@ Q: "Show me data from module X"
 
 Standard (≤ 1M cells):
 1. show_modules           → get moduleId
-2. show_savedviews        → pick a view
+2. [Optional] show_savedviews → pick a saved view for a specific layout
+   → If no saved view needed, use moduleId as viewId (reads the default view)
 3. read_cells(workspace, model, module, view)
+   → Use pages param to filter by page dimensions: pages=[{dimensionId, itemId}]
+   → Use maxRows to limit output size
+
+If read_cells returns truncated data (>50K chars):
+→ First try: add pages param to select "All" items for large dimensions
+→ If still too large: use maxRows to limit rows
+→ If still too large: use the large volume read flow below
+→ NEVER iterate read_cells per list item — one large read is always better
 
 Large (> 1M cells):
-1. show_allviews          → get viewId
+1. show_allviews          → get viewId (or use moduleId for default view)
 2. create_view_readrequest(workspace, model, viewId)
-3. get_view_readrequest   → poll until requestState=COMPLETE
-4. get_view_readrequest_page(pageNo=0,1,2...) → download all pages
-5. delete_view_readrequest → always clean up
+   → returns requestId
+3. get_view_readrequest(workspace, model, viewId, requestId)
+   → poll until requestState=COMPLETE (returns page count)
+4. get_view_readrequest_page(workspace, model, viewId, requestId, pageNo=0,1,2...)
+   → download each page (0-based) as CSV — repeat for all pages
+5. delete_view_readrequest(workspace, model, viewId, requestId)
+   → ALWAYS clean up to free server resources
 ```
 
 ### Export Data
@@ -185,9 +198,14 @@ Large (> 1M cells):
 Q: "Export data from model X"
 
 1. show_exports           → find the export action
-2. run_export(workspace, model, exportId)
-   → returns data inline (truncated at 50k chars)
-   → set saveToDownloads=true for full file in ~/Downloads
+2. [Optional] show_exportdetails → check exportFormat, headerNames, rowCount estimate
+3. run_export(workspace, model, exportId)
+   → Fully self-contained: executes task, polls completion, downloads all chunks, returns data
+   → Returns data inline (truncated at 50k chars)
+   → Set saveToDownloads=true and optional fileName to save full file to ~/Downloads
+
+No prerequisites beyond knowing the exportId. The export definition in the model
+already specifies the source view, format, and layout.
 
 Q: "What format/columns does this export have?"
 → show_exportdetails      → check exportFormat, headerNames, rowCount
@@ -199,16 +217,24 @@ Q: "What format/columns does this export have?"
 Q: "Import data into model X"
 
 1. show_imports           → find the import action
-2. show_importdetails     → check expected column headers and file format
-3. show_files             → find the file ID the import uses as source
+2. show_importdetails     → check expected column headers, file format, source fileId
+3. show_files             → confirm the source fileId matches
 4. run_import(workspace, model, importId, fileId, csvData)
-   → internally uploads file then runs import task
-   → returns task result with success/ignored/failure counts
+   → INTERNALLY uploads csvData to the file, then executes the import action
+   → You do NOT need to call upload_file separately — run_import handles both steps
+   → Optional: mappingParameters to override dimension mappings (e.g., target "Actual" version)
+   → Polls internally until complete, returns task result with success/ignored/failure counts
+
+When to call upload_file separately:
+- Uploading data without immediately running an import (e.g., preparing for a later process)
+- The import is part of a process — upload the file first, then call run_process
+- Multiple imports share the same source file
 
 On failure:
-5. show_tasks(actionType=imports, actionId)  → get taskId
-6. download_importdump(workspace, model, importId, taskId)
-   → CSV with row-level error details
+5. show_tasks(actionType=imports, actionId)  → get taskId where successful=false
+6. Check if failureDumpAvailable=true in the task result
+7. download_importdump(workspace, model, importId, taskId)
+   → CSV with row-level error details (available ~48 hours)
 ```
 
 ### Run a Process
@@ -232,17 +258,38 @@ On failure:
 ```
 Q: "Set value X in module Y for product Z, time Jan 25, version Actual"
 
+Name-based write (recommended — no prerequisite calls needed):
+→ write_cells(workspace, model, module, data=[{
+    lineItemName: "Revenue",
+    dimensions: [
+      { dimensionName: "Product", itemName: "Product Z" },
+      { dimensionName: "Time", itemName: "Jan 25" },
+      { dimensionName: "Version", itemName: "Actual" }
+    ],
+    value: 50000
+  }])
+
+ID-based write (full prerequisite chain — when you need to discover IDs):
 1. show_modules           → get moduleId
 2. show_alllineitems(modelId) or show_lineitems(module)
-                          → get lineItemId
+                          → get lineItemId for the target measure
 3. show_lineitem_dimensions(modelId, lineItemId)
                           → get dimensionIds (e.g. Products, Time, Versions)
+                          → this tells you WHICH dimensions the line item uses
 4. lookup_dimensionitems(dimensionId, names=["Product Z"])
-   OR show_dimensionitems(dimensionId) → get itemIds
+   → resolves human-readable names to itemIds in one call
+   OR show_dimensionitems(dimensionId) → browse all items
    (repeat for each dimension)
-5. write_cells(workspace, model, module, lineItemId, [
-     { dimensions: [{dimensionId, itemId}, ...], value: "..." }
-   ])
+5. write_cells(workspace, model, module, data=[{
+     lineItemId, dimensions: [{dimensionId, itemId}, ...], value
+   }])
+
+Key points:
+- Name-based is simpler and recommended when you know exact names
+- ID-based is needed when names are ambiguous or you need to validate available items
+- ID-only tools (show_lineitem_dimensions, show_dimensionitems, show_alllineitems)
+  require the 32-char hex model ID, not a name — use show_models first to get it
+- lookup_dimensionitems is faster than show_dimensionitems when you already know names
 ```
 
 ### Manage List Items
@@ -255,12 +302,18 @@ Q: "Add items to list X"
 Q: "Update items in list X"
 1. show_lists             → get listId
 2. get_list_items         → get current items with IDs and codes
-3. update_list_items      → include `code` field if item already has one
+   IMPORTANT: Check which items already have `code` values
+3. update_list_items      → MUST include `code` field if item already has one
+   Omitting `code` on an item that has one causes Anaplan HTTP 500 error
 
 Q: "Delete items from list X"
 1. show_lists             → get listId
 2. get_list_items         → get item IDs
-3. delete_list_items      → pass [{id: "..."}] array
+3. delete_list_items      → pass [{id: "..."}] array (identify by id or code, not both)
+
+Q: "Update numbered list items"
+→ Numbered lists have auto-generated names — always use `code` to identify items
+→ get_list_items first to see existing codes
 
 Q: "Read a list with millions of items"
 1. show_lists             → get listId
@@ -366,3 +419,47 @@ Private files (uploads and export outputs) expire after 48 hours of inactivity. 
 
 **10. show_viewdimensionitems vs show_dimensionitems**
 Use `show_viewdimensionitems` when Selective Access or view filters may hide items. Use `show_dimensionitems` to see all items regardless of access rules.
+
+---
+
+## Tool Dependency Reference: Standalone vs Prerequisites
+
+### Truly Standalone Tools (no prerequisites)
+These tools work with zero or minimal prior context:
+- `show_workspaces`, `show_allmodels`, `show_currentuser`, `show_users` — zero parameters needed
+- `show_models`, `show_modules`, `show_lists`, `show_imports`, `show_exports`, `show_processes`, `show_actions`, `show_files` — only need workspaceId + modelId (accept names)
+- `read_cells` — can use moduleId as viewId (default view), so only needs workspace + model + module names
+- `run_export` — only needs workspace + model + export name; fully self-contained after that
+- `write_cells` with name-based data — only needs workspace + model + module name + human-readable names for line items, dimensions, and items
+
+### Tools That Require Prerequisite Discovery
+- `write_cells` with ID-based data: needs `show_alllineitems` -> `show_lineitem_dimensions` -> `lookup_dimensionitems` chain
+- `run_import`: needs `show_importdetails` to find the source fileId and expected columns
+- `download_importdump` / `download_processdump`: needs `show_tasks` to get taskId (and objectId for processes)
+- `show_viewdetails` / `show_viewdimensionitems`: needs viewId from `show_savedviews` or `show_allviews`
+- `create_view_readrequest` / large read flow: needs viewId
+- `set_versionswitchover`: needs versionId from `show_versions`
+- `bulk_delete_models`: models must be closed first via `close_model`
+- `cancel_task`: needs taskId from `show_tasks`
+
+---
+
+## Session Handling for Remote MCP (Claude Web / Claude Desktop)
+
+When using this MCP server through Claude Web or Claude Desktop (remote transport), be aware of session lifecycle:
+
+### Session timeout behavior
+- The MCP server maintains an active connection with cached auth tokens and resolved names.
+- If the underlying transport connection drops (network interruption, server restart, idle timeout), the session becomes stale.
+- Stale sessions manifest as tools suddenly failing with connection errors, auth errors, or unexpected empty responses mid-conversation.
+
+### What to do when tools start failing mid-conversation
+1. If a single tool fails, retry it once — transient network errors do happen.
+2. If multiple tools fail in succession, the session is likely stale.
+3. **Start a new chat/conversation** to get a fresh MCP session with a new auth token.
+4. Do NOT keep retrying in the same conversation — each failed call wastes time and tokens.
+
+### Best practices for long conversations
+- Front-load discovery calls (`show_workspaces`, `show_models`, `show_modules`) early when the session is fresh.
+- Save important IDs (workspaceId, modelId) in the conversation so they can be reused in a new session if needed.
+- For multi-step workflows (import, large read), complete the entire sequence without long pauses between steps.
