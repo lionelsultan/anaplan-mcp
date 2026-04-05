@@ -9,7 +9,7 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 70 structured tools, using your existing Anaplan credentials and permissions.
 
-Built in TypeScript. Runs over stdio. Works with Claude Desktop, Claude Code, and any MCP-compatible client. Includes a built-in orchestration guide that teaches the AI assistant the correct tool sequences for every workflow.
+Built in TypeScript. Supports both stdio (local) and Streamable HTTP (remote) transports. Works with Claude Desktop, Claude Code, claude.ai, and any MCP-compatible client. Includes a built-in orchestration guide that teaches the AI assistant the correct tool sequences for every workflow.
 
 ## Why This Exists
 
@@ -181,7 +181,9 @@ Any MCP-compatible client that supports stdio transport can connect. The server 
 
 ### Browser-based AI (claude.ai, ChatGPT)
 
-Both [claude.ai](https://claude.ai) and [ChatGPT](https://chatgpt.com) now support remote MCP connectors. However, this server uses **stdio transport** (it runs as a local subprocess), so it cannot be connected directly from a browser. To use it from claude.ai or ChatGPT, you need to wrap it behind a remote MCP proxy. For local use, Claude Desktop or Claude Code are the simplest options.
+The server also supports **Streamable HTTP transport** for remote MCP connections from [claude.ai](https://claude.ai), [ChatGPT](https://chatgpt.com), and other browser-based AI assistants. Deploy to a cloud platform (Fly.io recommended) and connect via the remote MCP integration settings.
+
+See the **[Remote Deployment Guide](docs/guides/deploying-remote.md)** for full setup instructions, platform recommendations, and troubleshooting.
 
 ## Configuration
 
