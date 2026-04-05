@@ -28,6 +28,7 @@ function parseBody(req: import("node:http").IncomingMessage): Promise<unknown> {
 
 const httpServer = createHttpServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+  console.error(`[${new Date().toISOString()}] ${req.method} ${url.pathname} session=${req.headers["mcp-session-id"] ?? "none"} accept=${req.headers["accept"] ?? "none"}`);
 
   // Health check
   if (url.pathname === "/health") {
