@@ -383,6 +383,18 @@ run_export is a fully self-contained tool -- it handles the entire lifecycle (ex
    - objectId identifies which step failed (from task result's nestedResults)
 \`\`\`
 
+## Workflow 6b: Run a Delete Action
+
+\`\`\`
+1. show_actions(workspaceId, modelId) -> find delete actions and get actionId
+2. [Optional] show_actiondetails(workspaceId, modelId, actionId) -> see what the action deletes
+3. run_delete(workspaceId, modelId, actionId)
+   -> executes the pre-configured delete action (removes list items based on boolean filter)
+4. [If needed] get_action_status(workspaceId, modelId, "actions", actionId, taskId)
+\`\`\`
+
+**WARNING:** Delete actions are irreversible. The action deletes items from a list based on a boolean control line item -- items marked true are removed permanently. Always check show_actiondetails first to understand what will be deleted.
+
 ## Workflow 7: List Item Mutations
 
 \`\`\`
@@ -440,6 +452,9 @@ bulk_delete_models(workspaceId, modelIds[]) -> WARNING: irreversible, models mus
 show_tasks(workspaceId, modelId, actionType, actionId) -> view task history
 get_action_status(workspaceId, modelId, actionType, actionId, taskId) -> check specific task
 cancel_task(workspaceId, modelId, actionType, actionId, taskId) -> cancel running task
+download_importdump(workspaceId, modelId, importId, taskId) -> CSV error details for failed imports
+download_processdump(workspaceId, modelId, processId, taskId, objectId) -> CSV error details for failed process steps
+download_optimizer_log(workspaceId, modelId, actionId, correlationId) -> solver log for optimizer actions
 \`\`\`
 
 actionType must be one of: imports, exports, processes, actions.
