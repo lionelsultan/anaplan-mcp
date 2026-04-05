@@ -104,6 +104,6 @@ app.delete("/mcp", async (req, res) => {
   await transports[sessionId].handleRequest(req, res);
 });
 
-app.listen(PORT, () => {
-  console.error(`Anaplan MCP server running on http://localhost:${PORT}/mcp`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.error(`Anaplan MCP server running on http://0.0.0.0:${PORT}/mcp`);
 });
