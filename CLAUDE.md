@@ -6,8 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run build        # Compile TypeScript to dist/
-npm run dev          # Run from source with tsx
+npm run dev          # Run from source with tsx (stdio)
+npm run dev:http     # Run from source with tsx (Streamable HTTP on port 3000)
 npm run typecheck    # Type-check without emitting
+npm start            # Run compiled (stdio)
+npm run start:http   # Run compiled (Streamable HTTP, MCP_PORT env to override 3000)
 npm test             # Run all tests (vitest)
 npm run test:watch   # Watch mode
 npx vitest run src/auth/basic.test.ts           # Run single test file
@@ -28,7 +31,7 @@ Three layers, all under `src/`:
 
 - **resolver.ts** - `NameResolver` class lets all 70 tools accept human-readable names alongside raw Anaplan IDs (32-char hex). Detects IDs via `/^[0-9a-fA-F]{24,}$/`, resolves names by calling the corresponding list API, caches results in-memory with 5-minute TTL. Case-insensitive matching.
 
-- **transport/** - `CompatibleStdioServerTransport` in `compatibleStdio.ts` handles both content-length framed and line-delimited JSON-RPC over stdio, auto-detecting the framing mode.
+- **transport/** - `CompatibleStdioServerTransport` in `compatibleStdio.ts` handles both content-length framed and line-delimited JSON-RPC over stdio, auto-detecting the framing mode. `http.ts` (top-level) provides Streamable HTTP transport via `node:http` for remote clients (Claude Web, etc.).
 
 **Wiring:** `server.ts` creates McpServer, instantiates all 16 API classes and `NameResolver` (with 9 of them), and passes APIs + resolver to all three tool registration functions. `index.ts` connects via `CompatibleStdioServerTransport`.
 
