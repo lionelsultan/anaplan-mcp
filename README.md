@@ -132,12 +132,21 @@ For other auth methods, use the same structure with a different `env` block:
 ```
 `ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` can be added optionally; defaults to `v2`. Set `v1` only for legacy tenants.
 
-**OAuth2 (device grant) - interactive, opens browser to authorize:**
+**OAuth2 (device grant):**
+
+When you first call any tool, Claude will display a URL and code in the chat. Open that URL in any browser, enter the code, and authorize. Then retry your request — sign-in completes and the tool runs. The refresh token is cached automatically, so you won't be prompted again on future restarts.
+
 ```json
 "env": {
   "ANAPLAN_CLIENT_ID": "your-client-id"
 }
 ```
+
+Example of what Claude shows in chat:
+
+> Open this link: `https://iam.anaplan.com/activate?user_code=XXXX-XXXX`
+> Log in with your Anaplan credentials and approve the device
+> Come back and let me know — I'll retry the connection
 
 **OAuth2 (authorization code) - non-interactive:**
 ```json
@@ -194,7 +203,7 @@ All configuration is done through environment variables. There are no config fil
 | Method | Env Vars | Description |
 |--------|----------|-------------|
 | Certificate | `ANAPLAN_CERTIFICATE_PATH`, `ANAPLAN_PRIVATE_KEY_PATH`, `ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` (optional) | Highest priority. PEM certificate + private key, authenticates via CACertificate flow. Data format defaults to `v2` |
-| OAuth2 (device grant) | `ANAPLAN_CLIENT_ID` | Interactive device authorization flow. Set only `ANAPLAN_CLIENT_ID` |
+| OAuth2 (device grant) | `ANAPLAN_CLIENT_ID` | Device authorization flow. Claude shows you the URL and code in chat; authorize in browser then retry. Refresh token cached automatically — no browser prompt on subsequent startups |
 | OAuth2 (authorization code) | `ANAPLAN_CLIENT_ID`, `ANAPLAN_CLIENT_SECRET`, `ANAPLAN_OAUTH_AUTHORIZATION_CODE`, `ANAPLAN_OAUTH_REDIRECT_URI` | Non-interactive. Requires all four env vars. Code is single-use |
 | Basic | `ANAPLAN_USERNAME`, `ANAPLAN_PASSWORD` | Lowest priority. Email + password, sends base64 credentials to auth endpoint |
 

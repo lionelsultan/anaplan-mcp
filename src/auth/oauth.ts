@@ -20,9 +20,37 @@ interface OAuthTokenResponse {
   refresh_token: string;
 }
 
+interface PendingDeviceState {
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  verificationUriComplete?: string;
+  expiresAt: number;
+  intervalMs: number;
+}
+
 export interface AuthorizationCodeOptions {
   authorizationCode: string;
   redirectUri: string;
+}
+
+export class DeviceAuthorizationRequiredError extends Error {
+  readonly verificationUri: string;
+  readonly verificationUriComplete?: string;
+  readonly userCode: string;
+
+  constructor(verificationUri: string, userCode: string, verificationUriComplete?: string) {
+    let message = `Anaplan OAuth device authorization required.\n\nGo to: ${verificationUri}\n`;
+    if (verificationUriComplete) {
+      message += `Or open this direct link: ${verificationUriComplete}\n`;
+    }
+    message += `Enter code: ${userCode}\n\nOnce you have authorized in the browser, call the tool again to complete sign-in.`;
+    super(message);
+    this.name = "DeviceAuthorizationRequiredError";
+    this.verificationUri = verificationUri;
+    this.verificationUriComplete = verificationUriComplete;
+    this.userCode = userCode;
+  }
 }
 
 export class OAuthProvider implements AuthProvider {
@@ -30,15 +58,28 @@ export class OAuthProvider implements AuthProvider {
   private readonly clientSecret?: string;
   private readonly authCodeOptions?: AuthorizationCodeOptions;
   private authCodeUsed = false;
+  private pendingDevice: PendingDeviceState | null = null;
+  private initialRefreshToken: string | null;
 
-  constructor(clientId: string, clientSecret?: string, authCodeOptions?: AuthorizationCodeOptions) {
+  constructor(
+    clientId: string,
+    clientSecret?: string,
+    authCodeOptions?: AuthorizationCodeOptions,
+    initialRefreshToken?: string,
+  ) {
     if (!clientId) throw new Error("Anaplan OAuth client ID is required");
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.authCodeOptions = authCodeOptions;
+    this.initialRefreshToken = initialRefreshToken ?? null;
   }
 
   async authenticate(): Promise<TokenInfo> {
+    if (this.initialRefreshToken) {
+      const rt = this.initialRefreshToken;
+      this.initialRefreshToken = null;
+      return this.refresh(rt);
+    }
     if (this.authCodeOptions) {
       return this.authenticateWithAuthorizationCode();
     }
@@ -82,6 +123,54 @@ export class OAuthProvider implements AuthProvider {
   }
 
   private async authenticateWithDeviceGrant(): Promise<TokenInfo> {
+    // If we have a valid pending device code, poll once for the token
+    if (this.pendingDevice && Date.now() < this.pendingDevice.expiresAt) {
+      const state = this.pendingDevice;
+      const tokenRes = await fetch(TOKEN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: this.clientId,
+          device_code: state.deviceCode,
+          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+        }),
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+      });
+
+      const tokenData = (await tokenRes.json()) as OAuthTokenResponse & { error?: string };
+
+      if (tokenData.access_token) {
+        this.pendingDevice = null;
+        return {
+          tokenId: "",
+          tokenValue: tokenData.access_token,
+          expiresAt: Date.now() + tokenData.expires_in * 1000,
+          refreshTokenId: tokenData.refresh_token,
+        };
+      }
+
+      if (tokenData.error === "slow_down") {
+        state.intervalMs = state.intervalMs * 2;
+        throw new DeviceAuthorizationRequiredError(
+          state.verificationUri,
+          state.userCode,
+          state.verificationUriComplete,
+        );
+      }
+
+      if (tokenData.error === "authorization_pending") {
+        throw new DeviceAuthorizationRequiredError(
+          state.verificationUri,
+          state.userCode,
+          state.verificationUriComplete,
+        );
+      }
+
+      // Terminal error (expired_token, access_denied, etc.) — clear state and fall through to request fresh code
+      this.pendingDevice = null;
+    }
+
+    // No valid pending state — request a new device code
     const codeRes = await fetch(DEVICE_CODE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -98,49 +187,20 @@ export class OAuthProvider implements AuthProvider {
 
     const codeData = (await codeRes.json()) as DeviceCodeResponse;
 
-    let message = `\nOAuth device authorization required.\nGo to: ${codeData.verification_uri}\n`;
-    if (codeData.verification_uri_complete) {
-      message += `Or open directly: ${codeData.verification_uri_complete}\n`;
-    }
-    message += `Enter code: ${codeData.user_code}\nWaiting for authorization...\n`;
-    console.error(message);
+    this.pendingDevice = {
+      deviceCode: codeData.device_code,
+      userCode: codeData.user_code,
+      verificationUri: codeData.verification_uri,
+      verificationUriComplete: codeData.verification_uri_complete,
+      expiresAt: Date.now() + codeData.expires_in * 1000,
+      intervalMs: Math.max((codeData.interval || 5) * 1000, 5000),
+    };
 
-    let intervalMs = Math.max((codeData.interval || 5) * 1000, 5000);
-    const deadline = Date.now() + codeData.expires_in * 1000;
-
-    while (Date.now() < deadline) {
-      const tokenRes = await fetch(TOKEN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          client_id: this.clientId,
-          device_code: codeData.device_code,
-          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-        }),
-        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
-      });
-
-      const tokenData = (await tokenRes.json()) as OAuthTokenResponse & { error?: string };
-
-      if (tokenData.access_token) {
-        return {
-          tokenId: "",
-          tokenValue: tokenData.access_token,
-          expiresAt: Date.now() + tokenData.expires_in * 1000,
-          refreshTokenId: tokenData.refresh_token,
-        };
-      }
-
-      if (tokenData.error === "slow_down") {
-        intervalMs *= 2;
-      } else if (tokenData.error && tokenData.error !== "authorization_pending") {
-        throw new Error(`OAuth authentication failed: ${tokenData.error}`);
-      }
-
-      await new Promise((r) => setTimeout(r, intervalMs));
-    }
-
-    throw new Error("OAuth device authorization timed out");
+    throw new DeviceAuthorizationRequiredError(
+      codeData.verification_uri,
+      codeData.user_code,
+      codeData.verification_uri_complete,
+    );
   }
 
   async refresh(refreshToken: string): Promise<TokenInfo> {
