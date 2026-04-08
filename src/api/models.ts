@@ -1,4 +1,5 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 export class ModelsApi {
   private static readonly _PAGE_SIZE = 21; // default pagination hint
@@ -6,12 +7,15 @@ export class ModelsApi {
 
   async list(workspaceId: string, modelDetails = false) {
     const suffix = modelDetails ? "?modelDetails=true" : "";
-    return this.client.getAll<any>(`/workspaces/${workspaceId}/models${suffix}`, "models");
+    return this.client.getAll<any>(
+      `/workspaces/${encodePathSegment(workspaceId)}/models${suffix}`,
+      "models"
+    );
   }
 
   async get(workspaceId: string, modelId: string, modelDetails = false) {
     const suffix = modelDetails ? "?modelDetails=true" : "";
-    const res = await this.client.get<any>(`/models/${modelId}${suffix}`);
+    const res = await this.client.get<any>(`/models/${encodePathSegment(modelId)}${suffix}`);
     return res.model ?? res.models?.[0] ?? res;
   }
 

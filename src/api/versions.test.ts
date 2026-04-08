@@ -81,4 +81,16 @@ describe("VersionsApi", () => {
       { date: "" }
     );
   });
+
+  it("encodes path segments for model and version IDs", async () => {
+    mockClient.put.mockResolvedValue({ status: { code: 200, message: "Success" } });
+    const api = new VersionsApi(mockClient as any);
+
+    await api.setSwitchover("m/1", "v?1", "2024-06-01");
+
+    expect(mockClient.put).toHaveBeenCalledWith(
+      "/models/m%2F1/versions/v%3F1/switchover",
+      { date: "2024-06-01" }
+    );
+  });
 });

@@ -41,6 +41,12 @@ describe("OAuthProvider", () => {
     });
 
     it("polls on second call and returns token when authorized", async () => {
+      const nowSpy = vi.spyOn(Date, "now");
+      nowSpy
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000);
       const fetchSpy = vi.spyOn(globalThis, "fetch")
         .mockResolvedValueOnce({
           ok: true,
@@ -69,9 +75,17 @@ describe("OAuthProvider", () => {
       expect(token.tokenValue).toBe("oauth-token");
       expect(token.refreshTokenId).toBe("oauth-refresh");
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+      nowSpy.mockRestore();
     });
 
     it("throws again on second call if still authorization_pending", async () => {
+      const nowSpy = vi.spyOn(Date, "now");
+      nowSpy
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000);
       vi.spyOn(globalThis, "fetch")
         .mockResolvedValueOnce({
           ok: true,
@@ -91,9 +105,18 @@ describe("OAuthProvider", () => {
       const provider = new OAuthProvider("client-id");
       await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
       await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
+      nowSpy.mockRestore();
     });
 
     it("doubles intervalMs on slow_down and continues polling on next call", async () => {
+      const nowSpy = vi.spyOn(Date, "now");
+      nowSpy
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(17000)
+        .mockReturnValueOnce(17000);
       const fetchSpy = vi.spyOn(globalThis, "fetch")
         .mockResolvedValueOnce({
           ok: true,
@@ -128,6 +151,7 @@ describe("OAuthProvider", () => {
       const token = await provider.authenticate();
       expect(token.tokenValue).toBe("tok");
       expect(fetchSpy).toHaveBeenCalledTimes(3);
+      nowSpy.mockRestore();
     });
 
     it("includes verification_uri_complete in error when provided", async () => {
@@ -175,6 +199,14 @@ describe("OAuthProvider", () => {
     });
 
     it("clears pending state and requests fresh code on terminal error", async () => {
+      const nowSpy = vi.spyOn(Date, "now");
+      nowSpy
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000)
+        .mockReturnValueOnce(7000);
       const fetchSpy = vi.spyOn(globalThis, "fetch")
         .mockResolvedValueOnce({
           ok: true,
@@ -217,6 +249,7 @@ describe("OAuthProvider", () => {
       // Verify 3rd fetch was a device code request, not a token poll
       const thirdCallUrl = fetchSpy.mock.calls[2][0] as string;
       expect(thirdCallUrl).toContain("device/code");
+      nowSpy.mockRestore();
     });
 
     it("requests fresh code when pending state has expired", async () => {
@@ -257,6 +290,29 @@ describe("OAuthProvider", () => {
       }
       expect(caught!.userCode).toBe("NEW");
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+      nowSpy.mockRestore();
+    });
+
+    it("does not poll before nextPollAt", async () => {
+      let now = 1000;
+      const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          device_code: "dcode",
+          user_code: "UCODE",
+          verification_uri: "https://auth.anaplan.com/device",
+          expires_in: 600,
+          interval: 5,
+        }),
+      } as Response);
+
+      const provider = new OAuthProvider("client-id");
+      await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
+      now = 2000;
+      await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
       nowSpy.mockRestore();
     });
   });

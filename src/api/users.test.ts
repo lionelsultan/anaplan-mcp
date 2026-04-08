@@ -74,4 +74,16 @@ describe("UsersApi", () => {
       { id: "u2", email: "user@example.com" },
     ]);
   });
+
+  it("encodes userId and sort when building URLs", async () => {
+    mockClient.get.mockResolvedValue({ user: { id: "u/2" } });
+    mockClient.getAll.mockResolvedValue([]);
+    const api = new UsersApi(mockClient as any);
+
+    await api.get("u/2");
+    await api.list("+email address");
+
+    expect(mockClient.get).toHaveBeenCalledWith("/users/u%2F2");
+    expect(mockClient.getAll).toHaveBeenCalledWith("/users?sort=%2Bemail+address", ["users", "user"]);
+  });
 });

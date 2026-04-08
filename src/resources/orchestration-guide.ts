@@ -366,7 +366,7 @@ run_export is a fully self-contained tool -- it handles the entire lifecycle (ex
    -> check exportFormat, headerNames, rowCount estimate before running
 3. run_export(workspaceId, modelId, exportId)
    -> returns data inline (truncated at 50k chars)
-   -> set saveToDownloads=true and optional fileName to save the full file to ~/Downloads
+   -> in local stdio mode only, set saveToDownloads=true and optional fileName to save the full file to ~/Downloads
 \`\`\`
 
 **No prerequisites beyond knowing the exportId.** Unlike imports, exports don't require file uploads or multi-step setup. The export definition in the model already specifies the source view, format, and layout.

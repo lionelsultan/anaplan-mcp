@@ -1,12 +1,14 @@
 import express from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  canInitializeSession,
   createAuthorizedJsonBodyParser,
   extractHttpAccessToken,
   isHttpAccessAuthorized,
   loadHttpAuthConfig,
   loadHttpBodyLimit,
   loadHttpInlineDownloadLimit,
+  loadHttpSessionConfig,
   createHttpApp,
   validateRemoteHttpEnv,
 } from "./http.js";
@@ -19,6 +21,9 @@ describe("HTTP auth config", () => {
     delete process.env.ANAPLAN_MCP_HTTP_BODY_LIMIT;
     delete process.env.MCP_HTTP_BODY_LIMIT;
     delete process.env.ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT;
+    delete process.env.ANAPLAN_MCP_HTTP_MAX_SESSIONS;
+    delete process.env.ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP;
+    delete process.env.ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS;
     vi.restoreAllMocks();
   });
 
@@ -58,6 +63,18 @@ describe("HTTP auth config", () => {
     expect(loadHttpInlineDownloadLimit({
       ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT: "12mb",
     } as NodeJS.ProcessEnv)).toBe(12 * 1024 * 1024);
+  });
+
+  it("loads session limits from env", () => {
+    expect(loadHttpSessionConfig({
+      ANAPLAN_MCP_HTTP_MAX_SESSIONS: "50",
+      ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP: "4",
+      ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS: "30000",
+    } as NodeJS.ProcessEnv)).toEqual({
+      maxSessions: 50,
+      maxSessionsPerIp: 4,
+      idleTimeoutMs: 30000,
+    });
   });
 
   it("loads the HTTP body limit from env aliases", () => {
@@ -172,5 +189,25 @@ describe("HTTP request handling", () => {
     expect(json).toHaveBeenCalled();
     expect(parserCalls).toBe(0);
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it("rejects session initialization when per-IP session limit is reached", () => {
+    const admission = canInitializeSession({
+      a: {
+        transport: { close: vi.fn() } as any,
+        clientIp: "1.2.3.4",
+        lastSeenAt: Date.now(),
+      },
+    }, "1.2.3.4", {
+      maxSessions: 10,
+      maxSessionsPerIp: 1,
+      idleTimeoutMs: 60000,
+    });
+
+    expect(admission).toEqual({
+      allowed: false,
+      status: 429,
+      message: "Too many active MCP sessions for this client.",
+    });
   });
 });

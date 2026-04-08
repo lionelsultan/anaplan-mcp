@@ -33,6 +33,7 @@ Set your Anaplan OAuth client in the Fly.io dashboard so each remote session can
 
 If you expect very large inline MCP payloads, you can also set `ANAPLAN_MCP_HTTP_BODY_LIMIT`. The server defaults to `100mb`, which is enough for most `run_import` and `upload_file` requests.
 If you want to tighten remote inline downloads, set `ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT`. The server defaults to `10mb` for inline download responses in HTTP mode.
+If you want to hard-cap session fan-out, set `ANAPLAN_MCP_HTTP_MAX_SESSIONS`, `ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP`, and `ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS`.
 
 ### 3. Connect from Claude Web
 

@@ -1,18 +1,19 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 export class DimensionsApi {
   constructor(private client: AnaplanClient) {}
 
   async getAllItems(modelId: string, dimensionId: string) {
     const res = await this.client.get<any>(
-      `/models/${modelId}/dimensions/${dimensionId}/items`
+      `/models/${encodePathSegment(modelId)}/dimensions/${encodePathSegment(dimensionId)}/items`
     );
     return res.items ?? [];
   }
 
   async getSelectedItems(modelId: string, viewId: string, dimensionId: string) {
     const res = await this.client.get<any>(
-      `/models/${modelId}/views/${viewId}/dimensions/${dimensionId}/items`
+      `/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}/dimensions/${encodePathSegment(dimensionId)}/items`
     );
     return res.items ?? [];
   }
@@ -25,7 +26,7 @@ export class DimensionsApi {
     codes?: string[],
   ) {
     const res = await this.client.post<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/dimensions/${dimensionId}/items`,
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/dimensions/${encodePathSegment(dimensionId)}/items`,
       { names, codes }
     );
     return res.items ?? [];
@@ -37,7 +38,7 @@ export class DimensionsApi {
     dimensionId: string,
   ) {
     const res = await this.client.get<any>(
-      `/models/${modelId}/lineItems/${lineItemId}/dimensions/${dimensionId}/items`
+      `/models/${encodePathSegment(modelId)}/lineItems/${encodePathSegment(lineItemId)}/dimensions/${encodePathSegment(dimensionId)}/items`
     );
     return res.items ?? [];
   }

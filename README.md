@@ -206,6 +206,9 @@ These apply only to `npm run start:http` / remote MCP deployments:
 | `ANAPLAN_MCP_HTTP_AUTH_TOKEN` | Required for remote HTTP mode. Callers must also send it as `Authorization: Bearer <token>`. `MCP_HTTP_AUTH_TOKEN` is accepted as an alias |
 | `ANAPLAN_MCP_HTTP_BODY_LIMIT` | Optional JSON body limit for remote HTTP requests. Defaults to `100mb` to support large `run_import` and `upload_file` payloads. `MCP_HTTP_BODY_LIMIT` is accepted as an alias |
 | `ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT` | Optional inline download ceiling for remote HTTP mode. Defaults to `10mb`. Accepts bytes or `KB`/`MB`/`GB` suffixes |
+| `ANAPLAN_MCP_HTTP_MAX_SESSIONS` | Optional cap on total active HTTP MCP sessions. Defaults to `100` |
+| `ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP` | Optional cap on active HTTP MCP sessions per client IP. Defaults to `10` |
+| `ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS` | Optional idle timeout for HTTP MCP sessions. Defaults to `3600000` (1 hour) |
 
 ### Where to set environment variables
 

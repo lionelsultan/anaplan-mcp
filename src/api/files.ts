@@ -1,16 +1,17 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 export class FilesApi {
   constructor(private client: AnaplanClient) {}
 
   async list(workspaceId: string, modelId: string) {
     return this.client.getAll<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/files`, "files"
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/files`, "files"
     );
   }
 
   async upload(workspaceId: string, modelId: string, fileId: string, data: string, compress?: boolean) {
-    const path = `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}`;
+    const path = `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/files/${encodePathSegment(fileId)}`;
     // File header: 21 bytes reserved for chunk metadata (ls21)
     await this.client.post(`${path}`, { chunkCount: -1 });
     await this.client.uploadChunked(`${path}/chunks/0`, data, compress);
@@ -19,7 +20,7 @@ export class FilesApi {
 
   async delete(workspaceId: string, modelId: string, fileId: string) {
     return this.client.delete<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/files/${encodePathSegment(fileId)}`
     );
   }
 
@@ -30,14 +31,14 @@ export class FilesApi {
     options?: { maxBytes?: number },
   ): Promise<Buffer> {
     const res = await this.client.get<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}/chunks`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/files/${encodePathSegment(fileId)}/chunks`
     );
     const chunks: Array<{ id: string; name: string }> = res.chunks ?? [];
     const parts: Buffer[] = [];
     let totalBytes = 0;
     for (const chunk of chunks) {
       const data = await this.client.getRawBytes(
-        `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}/chunks/${chunk.id}`
+        `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/files/${encodePathSegment(fileId)}/chunks/${encodePathSegment(chunk.id)}`
       );
       totalBytes += data.length;
       if (options?.maxBytes !== undefined && totalBytes > options.maxBytes) {

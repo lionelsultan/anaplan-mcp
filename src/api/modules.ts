@@ -1,11 +1,12 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 export class ModulesApi {
   constructor(private client: AnaplanClient) {}
 
   async list(workspaceId: string, modelId: string) {
     return this.client.getAll<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/modules`, "modules"
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/modules`, "modules"
     );
   }
 
@@ -18,7 +19,7 @@ export class ModulesApi {
 
   async listLineItems(workspaceId: string, modelId: string, moduleId: string) {
     return this.client.getAll<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/modules/${moduleId}/lineItems`, "items"
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/modules/${encodePathSegment(moduleId)}/lineItems`, "items"
     );
   }
 
@@ -26,7 +27,7 @@ export class ModulesApi {
   async listViews(workspaceId: string, modelId: string, moduleId: string, includeSubsidiaryViews = false) {
     const suffix = includeSubsidiaryViews ? "?includesubsidiaryviews=true" : "";
     return this.client.getAll<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/modules/${moduleId}/views${suffix}`, "views"
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/modules/${encodePathSegment(moduleId)}/views${suffix}`, "views"
     );
   }
 }

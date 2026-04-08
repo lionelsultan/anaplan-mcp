@@ -27,6 +27,7 @@ interface PendingDeviceState {
   verificationUriComplete?: string;
   expiresAt: number;
   intervalMs: number;
+  nextPollAt: number;
 }
 
 // Kept for constructor compatibility; OAuth now supports device grant only.
@@ -85,6 +86,13 @@ export class OAuthProvider implements AuthProvider {
     // If we have a valid pending device code, poll once for the token
     if (this.pendingDevice && Date.now() < this.pendingDevice.expiresAt) {
       const state = this.pendingDevice;
+      if (Date.now() < state.nextPollAt) {
+        throw new DeviceAuthorizationRequiredError(
+          state.verificationUri,
+          state.userCode,
+          state.verificationUriComplete,
+        );
+      }
       const tokenRes = await fetch(TOKEN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,6 +118,7 @@ export class OAuthProvider implements AuthProvider {
 
       if (tokenData.error === "slow_down") {
         state.intervalMs = state.intervalMs * 2;
+        state.nextPollAt = Date.now() + state.intervalMs;
         throw new DeviceAuthorizationRequiredError(
           state.verificationUri,
           state.userCode,
@@ -118,6 +127,7 @@ export class OAuthProvider implements AuthProvider {
       }
 
       if (tokenData.error === "authorization_pending") {
+        state.nextPollAt = Date.now() + state.intervalMs;
         throw new DeviceAuthorizationRequiredError(
           state.verificationUri,
           state.userCode,
@@ -153,6 +163,7 @@ export class OAuthProvider implements AuthProvider {
       verificationUriComplete: codeData.verification_uri_complete,
       expiresAt: Date.now() + codeData.expires_in * 1000,
       intervalMs: Math.max((codeData.interval || 5) * 1000, 5000),
+      nextPollAt: Date.now() + Math.max((codeData.interval || 5) * 1000, 5000),
     };
 
     throw new DeviceAuthorizationRequiredError(

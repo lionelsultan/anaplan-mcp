@@ -1,4 +1,5 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 export class LargeReadsApi {
   constructor(private client: AnaplanClient) {}
@@ -12,7 +13,7 @@ export class LargeReadsApi {
     exportType: string
   ) {
     const res = await this.client.post<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/views/${viewId}/readRequests`,
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}/readRequests`,
       { exportType }
     );
     return res.viewReadRequest ?? res;
@@ -25,7 +26,7 @@ export class LargeReadsApi {
     requestId: string
   ) {
     const res = await this.client.get<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/views/${viewId}/readRequests/${requestId}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}/readRequests/${encodePathSegment(requestId)}`
     );
     return res.viewReadRequest ?? res;
   }
@@ -38,7 +39,7 @@ export class LargeReadsApi {
     pageNumber: number
   ): Promise<string> {
     return this.client.getRaw(
-      `/workspaces/${workspaceId}/models/${modelId}/views/${viewId}/readRequests/${requestId}/pages/${pageNumber}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}/readRequests/${encodePathSegment(requestId)}/pages/${pageNumber}`
     );
   }
 
@@ -49,7 +50,7 @@ export class LargeReadsApi {
     requestId: string
   ) {
     const res = await this.client.delete<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/views/${viewId}/readRequests/${requestId}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}/readRequests/${encodePathSegment(requestId)}`
     );
     return res.viewReadRequest ?? res;
   }
@@ -58,7 +59,7 @@ export class LargeReadsApi {
 
   async previewList(workspaceId: string, modelId: string, listId: string): Promise<string> {
     return this.client.getRaw(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/preview`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/preview`
     );
   }
 
@@ -70,7 +71,7 @@ export class LargeReadsApi {
     listId: string
   ) {
     const res = await this.client.post<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/readRequests`,
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/readRequests`,
       {}
     );
     return res.listReadRequest ?? res;
@@ -83,7 +84,7 @@ export class LargeReadsApi {
     requestId: string
   ) {
     const res = await this.client.get<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/readRequests/${requestId}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/readRequests/${encodePathSegment(requestId)}`
     );
     return res.listReadRequest ?? res;
   }
@@ -96,7 +97,7 @@ export class LargeReadsApi {
     pageNumber: number
   ): Promise<string> {
     return this.client.getRaw(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/readRequests/${requestId}/pages/${pageNumber}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/readRequests/${encodePathSegment(requestId)}/pages/${pageNumber}`
     );
   }
 
@@ -107,7 +108,7 @@ export class LargeReadsApi {
     requestId: string
   ) {
     const res = await this.client.delete<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/readRequests/${requestId}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/readRequests/${encodePathSegment(requestId)}`
     );
     return res.listReadRequest ?? res;
   }

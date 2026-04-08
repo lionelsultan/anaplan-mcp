@@ -1,4 +1,5 @@
 import type { AnaplanClient } from "./client.js";
+import { buildQuery, encodePathSegment } from "./url.js";
 
 const POLL_INTERVAL_MS = 2000;
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -8,20 +9,20 @@ export class ProcessesApi {
 
   async list(workspaceId: string, modelId: string) {
     return this.client.getAll<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/processes`, "processes"
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/processes`, "processes"
     );
   }
 
   async get(workspaceId: string, modelId: string, processId: string, showImportDataSource = false) {
-    const query = showImportDataSource ? "?showImportDataSource=true" : "";
+    const query = buildQuery({ showImportDataSource: showImportDataSource || undefined });
     const res = await this.client.get<any>(
-      `/models/${modelId}/processes/${processId}${query}`
+      `/models/${encodePathSegment(modelId)}/processes/${encodePathSegment(processId)}${query}`
     );
     return res.processMetadata ?? res.process ?? res;
   }
 
   async run(workspaceId: string, modelId: string, processId: string, timeoutMs = DEFAULT_TIMEOUT_MS, mappingParameters?: Array<{ entityType: string; entityName: string }>) {
-    const base = `/workspaces/${workspaceId}/models/${modelId}/processes/${processId}`;
+    const base = `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/processes/${encodePathSegment(processId)}`;
     const body: Record<string, any> = { localeName: "en_US" };
     if (mappingParameters && mappingParameters.length > 0) {
       body.mappingParameters = mappingParameters;
@@ -32,21 +33,29 @@ export class ProcessesApi {
   }
 
   async listTasks(workspaceId: string, modelId: string, processId: string) {
-    const res = await this.client.get<any>(`/workspaces/${workspaceId}/models/${modelId}/processes/${processId}/tasks`);
+    const res = await this.client.get<any>(
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/processes/${encodePathSegment(processId)}/tasks`
+    );
     return res.tasks ?? [];
   }
 
   async cancelTask(workspaceId: string, modelId: string, processId: string, taskId: string) {
-    return this.client.delete<any>(`/workspaces/${workspaceId}/models/${modelId}/processes/${processId}/tasks/${taskId}`);
+    return this.client.delete<any>(
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/processes/${encodePathSegment(processId)}/tasks/${encodePathSegment(taskId)}`
+    );
   }
 
   async getDumpChunks(workspaceId: string, modelId: string, processId: string, taskId: string, objectId: string) {
-    const res = await this.client.get<any>(`/workspaces/${workspaceId}/models/${modelId}/processes/${processId}/tasks/${taskId}/dumps/${objectId}/chunks`);
+    const res = await this.client.get<any>(
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/processes/${encodePathSegment(processId)}/tasks/${encodePathSegment(taskId)}/dumps/${encodePathSegment(objectId)}/chunks`
+    );
     return res.chunks ?? [];
   }
 
   async getDumpChunkData(workspaceId: string, modelId: string, processId: string, taskId: string, objectId: string, chunkId: string) {
-    return this.client.getRaw(`/workspaces/${workspaceId}/models/${modelId}/processes/${processId}/tasks/${taskId}/dumps/${objectId}/chunks/${chunkId}`);
+    return this.client.getRaw(
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/processes/${encodePathSegment(processId)}/tasks/${encodePathSegment(taskId)}/dumps/${encodePathSegment(objectId)}/chunks/${encodePathSegment(chunkId)}`
+    );
   }
 
   private async pollTask(basePath: string, taskId: string, timeoutMs: number) {

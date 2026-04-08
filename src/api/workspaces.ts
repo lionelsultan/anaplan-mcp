@@ -1,4 +1,5 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 // Workspace enumeration - limit 21 per tenant default
 export class WorkspacesApi {
@@ -11,7 +12,7 @@ export class WorkspacesApi {
 
   async get(workspaceId: string, tenantDetails = false) {
     const suffix = tenantDetails ? "?tenantDetails=true" : "";
-    const res = await this.client.get<any>(`/workspaces/${workspaceId}${suffix}`);
+    const res = await this.client.get<any>(`/workspaces/${encodePathSegment(workspaceId)}${suffix}`);
     return res.workspace ?? res;
   }
 }

@@ -1,4 +1,5 @@
 import type { AnaplanClient } from "./client.js";
+import { buildQuery, encodePathSegment } from "./url.js";
 
 const MAX_RESPONSE_CHARS = 50000; // truncation threshold (see also: ls21 §4.2)
 
@@ -17,58 +18,63 @@ export class TransactionalApi {
       moduleId?: string;
     },
   ) {
-    let url = `/models/${modelId}/views/${viewId}/data?format=v1`;
-    if (options?.pages && options.pages.length > 0) {
-      const pagesParam = options.pages.map((p) => `${p.dimensionId}:${p.itemId}`).join(",");
-      url += `&pages=${pagesParam}`;
-    }
-    if (options?.maxRows !== undefined) {
-      url += `&maxRows=${options.maxRows}`;
-    }
-    if (options?.exportType && options?.moduleId) {
-      url += `&exportType=${options.exportType}&moduleId=${options.moduleId}`;
-    }
+    const pagesParam = options?.pages?.length
+      ? options.pages
+        .map((p) => `${encodePathSegment(p.dimensionId)}:${encodePathSegment(p.itemId)}`)
+        .join(",")
+      : undefined;
+    const url = `/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}/data${buildQuery({
+      format: "v1",
+      pages: pagesParam,
+      maxRows: options?.maxRows,
+      exportType: options?.exportType,
+      moduleId: options?.moduleId ? encodePathSegment(options.moduleId) : undefined,
+    })}`;
     const res = await this.client.get<any>(url);
     return this.truncateResponse(res);
   }
 
   async getAllLineItems(modelId: string, includeAll = false) {
     const suffix = includeAll ? "?includeAll=true" : "";
-    const res = await this.client.get<any>(`/models/${modelId}/lineItems${suffix}`);
+    const res = await this.client.get<any>(`/models/${encodePathSegment(modelId)}/lineItems${suffix}`);
     return res.items ?? [];
   }
 
   async getLineItemDimensions(modelId: string, lineItemId: string) {
     const res = await this.client.get<any>(
-      `/models/${modelId}/lineItems/${lineItemId}/dimensions`
+      `/models/${encodePathSegment(modelId)}/lineItems/${encodePathSegment(lineItemId)}/dimensions`
     );
     return res.dimensions ?? [];
   }
 
   async getAllViews(modelId: string, includeSubsidiaryViews = false) {
     const suffix = includeSubsidiaryViews ? "?includesubsidiaryviews=true" : "";
-    const res = await this.client.get<any>(`/models/${modelId}/views${suffix}`);
+    const res = await this.client.get<any>(`/models/${encodePathSegment(modelId)}/views${suffix}`);
     return res.views ?? [];
   }
 
   async getAllModules(modelId: string) {
-    const res = await this.client.get<any>(`/models/${modelId}/modules`);
+    const res = await this.client.get<any>(`/models/${encodePathSegment(modelId)}/modules`);
     return res.modules ?? [];
   }
 
   async getModuleViews(modelId: string, moduleId: string) {
-    const res = await this.client.get<any>(`/models/${modelId}/modules/${moduleId}/views`);
+    const res = await this.client.get<any>(
+      `/models/${encodePathSegment(modelId)}/modules/${encodePathSegment(moduleId)}/views`
+    );
     return res.views ?? [];
   }
 
   async getModuleLineItems(modelId: string, moduleId: string, includeAll = false) {
     const suffix = includeAll ? "?includeAll=true" : "";
-    const res = await this.client.get<any>(`/models/${modelId}/modules/${moduleId}/lineItems${suffix}`);
+    const res = await this.client.get<any>(
+      `/models/${encodePathSegment(modelId)}/modules/${encodePathSegment(moduleId)}/lineItems${suffix}`
+    );
     return res.items ?? [];
   }
 
   async getViewMetadata(modelId: string, viewId: string) {
-    return this.client.get<any>(`/models/${modelId}/views/${viewId}`);
+    return this.client.get<any>(`/models/${encodePathSegment(modelId)}/views/${encodePathSegment(viewId)}`);
   }
 
   async writeCells(
@@ -79,7 +85,7 @@ export class TransactionalApi {
     data: Array<Record<string, any>>
   ) {
     return this.client.post(
-      `/models/${modelId}/modules/${moduleId}/data`,
+      `/models/${encodePathSegment(modelId)}/modules/${encodePathSegment(moduleId)}/data`,
       data.map((d) => ({
         ...(lineItemId ? { lineItemId } : {}),
         ...d,
@@ -89,21 +95,21 @@ export class TransactionalApi {
 
   async addListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ name: string; code?: string; properties?: Record<string, string>; parent?: string; subsets?: Record<string, boolean> }>) {
     return this.client.post(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items?action=add`,
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/items?action=add`,
       { items }
     );
   }
 
   async updateListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ id: string; name?: string; code?: string; properties?: Record<string, string>; parent?: string; subsets?: Record<string, boolean> }>) {
     return this.client.put(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items`,
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/items`,
       { items }
     );
   }
 
   async deleteListItems(workspaceId: string, modelId: string, listId: string, items: Array<{ id?: string; code?: string }>) {
     return this.client.post(
-      `/workspaces/${workspaceId}/models/${modelId}/lists/${listId}/items?action=delete`,
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/lists/${encodePathSegment(listId)}/items?action=delete`,
       { items }
     );
   }

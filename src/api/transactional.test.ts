@@ -118,6 +118,22 @@ describe("TransactionalApi", () => {
       expect(result._truncated).toBe(true);
       expect(result._message).toContain("Response too large");
     });
+
+    it("encodes page selectors and query parameters in readCells URL", async () => {
+      const client = mockClient();
+      const api = new TransactionalApi(client);
+
+      await api.readCells("ws1", "m/1", "mod1", "view/1", {
+        pages: [{ dimensionId: "dim/1", itemId: "item?1" }],
+        maxRows: 25,
+        exportType: "GRID_CURRENT_PAGE",
+        moduleId: "module/1",
+      });
+
+      expect(client.get).toHaveBeenCalledWith(
+        "/models/m%2F1/views/view%2F1/data?format=v1&pages=dim%252F1%3Aitem%253F1&maxRows=25&exportType=GRID_CURRENT_PAGE&moduleId=module%252F1"
+      );
+    });
   });
 
   describe("getAllLineItems", () => {

@@ -1,4 +1,5 @@
 import type { AnaplanClient } from "./client.js";
+import { encodePathSegment } from "./url.js";
 
 const POLL_INTERVAL_MS = 2000;
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -9,31 +10,35 @@ export class ExportsApi {
 
   async list(workspaceId: string, modelId: string) {
     return this.client.getAll<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/exports`, "exports"
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/exports`, "exports"
     );
   }
 
   async get(workspaceId: string, modelId: string, exportId: string) {
     const res = await this.client.get<any>(
-      `/workspaces/${workspaceId}/models/${modelId}/exports/${exportId}`
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/exports/${encodePathSegment(exportId)}`
     );
     return res.export ?? res;
   }
 
   async run(workspaceId: string, modelId: string, exportId: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
-    const base = `/workspaces/${workspaceId}/models/${modelId}/exports/${exportId}`;
+    const base = `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/exports/${encodePathSegment(exportId)}`;
     const res = await this.client.post<{ task: any }>(`${base}/tasks`, { localeName: "en_US" });
     const taskId = res.task.taskId;
     return this.pollTask(base, taskId, timeoutMs);
   }
 
   async listTasks(workspaceId: string, modelId: string, exportId: string) {
-    const res = await this.client.get<any>(`/workspaces/${workspaceId}/models/${modelId}/exports/${exportId}/tasks`);
+    const res = await this.client.get<any>(
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/exports/${encodePathSegment(exportId)}/tasks`
+    );
     return res.tasks ?? [];
   }
 
   async cancelTask(workspaceId: string, modelId: string, exportId: string, taskId: string) {
-    return this.client.delete<any>(`/workspaces/${workspaceId}/models/${modelId}/exports/${exportId}/tasks/${taskId}`);
+    return this.client.delete<any>(
+      `/workspaces/${encodePathSegment(workspaceId)}/models/${encodePathSegment(modelId)}/exports/${encodePathSegment(exportId)}/tasks/${encodePathSegment(taskId)}`
+    );
   }
 
   private async pollTask(basePath: string, taskId: string, timeoutMs: number) {

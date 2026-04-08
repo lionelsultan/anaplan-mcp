@@ -11,6 +11,9 @@ import { createServer } from "./server.js";
 const DEFAULT_PORT = parseInt(process.env.PORT || process.env.MCP_PORT || "3000", 10);
 const DEFAULT_HTTP_BODY_LIMIT = "100mb";
 const DEFAULT_HTTP_INLINE_DOWNLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
+const DEFAULT_HTTP_MAX_SESSIONS = 100;
+const DEFAULT_HTTP_MAX_SESSIONS_PER_IP = 10;
+const DEFAULT_HTTP_SESSION_IDLE_TIMEOUT_MS = 60 * 60 * 1000;
 
 export interface HttpAuthConfig {
   bearerToken: string | null;
@@ -20,6 +23,18 @@ export interface HttpAccessHeaders {
   authorization?: string;
   xMcpApiKey?: string;
   xApiKey?: string;
+}
+
+export interface HttpSessionConfig {
+  maxSessions: number;
+  maxSessionsPerIp: number;
+  idleTimeoutMs: number;
+}
+
+export interface HttpSessionEntry {
+  transport: StreamableHTTPServerTransport;
+  clientIp: string;
+  lastSeenAt: number;
 }
 
 function trimToNull(value?: string): string | null {
@@ -57,12 +72,34 @@ function parseByteLimit(value: string): number {
   return amount * multiplierMap[suffix];
 }
 
+function parsePositiveInteger(name: string, value: string): number {
+  const parsed = Number.parseInt(value.trim(), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
 export function loadHttpInlineDownloadLimit(env: NodeJS.ProcessEnv = process.env): number {
   const configuredLimit = trimToNull(env.ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT);
   if (!configuredLimit) {
     return DEFAULT_HTTP_INLINE_DOWNLOAD_LIMIT_BYTES;
   }
   return parseByteLimit(configuredLimit);
+}
+
+export function loadHttpSessionConfig(env: NodeJS.ProcessEnv = process.env): HttpSessionConfig {
+  return {
+    maxSessions: env.ANAPLAN_MCP_HTTP_MAX_SESSIONS
+      ? parsePositiveInteger("ANAPLAN_MCP_HTTP_MAX_SESSIONS", env.ANAPLAN_MCP_HTTP_MAX_SESSIONS)
+      : DEFAULT_HTTP_MAX_SESSIONS,
+    maxSessionsPerIp: env.ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP
+      ? parsePositiveInteger("ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP", env.ANAPLAN_MCP_HTTP_MAX_SESSIONS_PER_IP)
+      : DEFAULT_HTTP_MAX_SESSIONS_PER_IP,
+    idleTimeoutMs: env.ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS
+      ? parsePositiveInteger("ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS", env.ANAPLAN_MCP_HTTP_SESSION_IDLE_TIMEOUT_MS)
+      : DEFAULT_HTTP_SESSION_IDLE_TIMEOUT_MS,
+  };
 }
 
 export function validateRemoteHttpEnv(env: NodeJS.ProcessEnv = process.env): void {
@@ -76,6 +113,49 @@ export function validateRemoteHttpEnv(env: NodeJS.ProcessEnv = process.env): voi
       "Remote HTTP mode requires ANAPLAN_MCP_HTTP_AUTH_TOKEN to protect the public MCP endpoint."
     );
   }
+  loadHttpSessionConfig(env);
+  loadHttpInlineDownloadLimit(env);
+}
+
+function getClientIp(req: express.Request): string {
+  const forwardedFor = req.header("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return req.ip || req.socket.remoteAddress || "unknown";
+}
+
+function evictExpiredSessions(
+  sessions: Record<string, HttpSessionEntry>,
+  config: HttpSessionConfig,
+  now = Date.now(),
+): void {
+  for (const [sessionId, entry] of Object.entries(sessions)) {
+    if (now - entry.lastSeenAt > config.idleTimeoutMs) {
+      void entry.transport.close();
+      delete sessions[sessionId];
+    }
+  }
+}
+
+export function canInitializeSession(
+  sessions: Record<string, HttpSessionEntry>,
+  clientIp: string,
+  config: HttpSessionConfig,
+  now = Date.now(),
+): { allowed: true } | { allowed: false; status: number; message: string } {
+  evictExpiredSessions(sessions, config, now);
+  const activeSessions = Object.keys(sessions).length;
+  if (activeSessions >= config.maxSessions) {
+    return { allowed: false, status: 429, message: "Too many active MCP sessions. Retry later." };
+  }
+  const sessionsForIp = Object.values(sessions)
+    .filter((entry) => entry.clientIp === clientIp)
+    .length;
+  if (sessionsForIp >= config.maxSessionsPerIp) {
+    return { allowed: false, status: 429, message: "Too many active MCP sessions for this client." };
+  }
+  return { allowed: true };
 }
 
 export function extractHttpAccessToken(headers: HttpAccessHeaders): string | null {
@@ -152,7 +232,8 @@ export function createHttpApp(
 ): express.Express {
   validateRemoteHttpEnv();
 
-  const transports: Record<string, StreamableHTTPServerTransport> = {};
+  const sessionConfig = loadHttpSessionConfig();
+  const transports: Record<string, HttpSessionEntry> = {};
   const serverFactory = dependencies?.serverFactory ?? createServer;
   const jsonParserFactory = dependencies?.jsonParserFactory ?? express.json;
   const app = express();
@@ -198,7 +279,8 @@ export function createHttpApp(
       let transport: StreamableHTTPServerTransport;
 
       if (sessionId && transports[sessionId]) {
-        transport = transports[sessionId];
+        transports[sessionId].lastSeenAt = Date.now();
+        transport = transports[sessionId].transport;
       } else if (sessionId && !transports[sessionId]) {
         res.status(404).json({
           jsonrpc: "2.0",
@@ -207,12 +289,26 @@ export function createHttpApp(
         });
         return;
       } else if (!sessionId && isInitializeRequest(req.body)) {
+        const clientIp = getClientIp(req);
+        const admission = canInitializeSession(transports, clientIp, sessionConfig);
+        if (!admission.allowed) {
+          res.status(admission.status).json({
+            jsonrpc: "2.0",
+            error: { code: -32002, message: admission.message },
+            id: null,
+          });
+          return;
+        }
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           enableJsonResponse: true,
           onsessioninitialized: (sid) => {
             console.error(`[${new Date().toISOString()}] Session initialized: ${sid}`);
-            transports[sid] = transport;
+            transports[sid] = {
+              transport,
+              clientIp,
+              lastSeenAt: Date.now(),
+            };
           },
         });
         transport.onclose = () => {
@@ -263,7 +359,18 @@ export function createHttpApp(
       return;
     }
 
-    await transports[sessionId].handleRequest(req, res);
+    evictExpiredSessions(transports, sessionConfig);
+    if (!transports[sessionId]) {
+      res.status(404).json({
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Session not found. Please reconnect." },
+        id: null,
+      });
+      return;
+    }
+
+    transports[sessionId].lastSeenAt = Date.now();
+    await transports[sessionId].transport.handleRequest(req, res);
   }
 
   async function handleDelete(req: express.Request, res: express.Response) {
@@ -277,7 +384,8 @@ export function createHttpApp(
       res.status(400).send("Invalid or missing session ID");
       return;
     }
-    await transports[sessionId].handleRequest(req, res);
+    transports[sessionId].lastSeenAt = Date.now();
+    await transports[sessionId].transport.handleRequest(req, res);
   }
 
   app.post("/mcp", parseAuthorizedJsonBody, handlePost);
