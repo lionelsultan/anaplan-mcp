@@ -134,19 +134,13 @@ For other auth methods, use the same structure with a different `env` block:
 
 **OAuth2 (device grant):**
 
-When you first call any tool, Claude will display a URL and code in the chat. Open that URL in any browser, enter the code, and authorize. Then retry your request — sign-in completes and the tool runs. The refresh token is cached automatically, so you won't be prompted again on future restarts.
-
 ```json
 "env": {
   "ANAPLAN_CLIENT_ID": "your-client-id"
 }
 ```
 
-Example of what Claude shows in chat:
-
-> Open this link: `https://iam.anaplan.com/activate?user_code=XXXX-XXXX`
-> Log in with your Anaplan credentials and approve the device
-> Come back and let me know — I'll retry the connection
+On first use, Claude shows a link in chat — click it, approve in Anaplan, then retry your request. The refresh token is cached automatically to `~/.anaplan-mcp/oauth-token`, so you won't be prompted again on future restarts.
 
 **OAuth2 (authorization code) - non-interactive:**
 ```json

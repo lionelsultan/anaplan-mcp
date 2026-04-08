@@ -40,11 +40,13 @@ export class DeviceAuthorizationRequiredError extends Error {
   readonly userCode: string;
 
   constructor(verificationUri: string, userCode: string, verificationUriComplete?: string) {
-    let message = `Anaplan OAuth device authorization required.\n\nGo to: ${verificationUri}\n`;
+    let message = `Anaplan authorization required.\n\n`;
     if (verificationUriComplete) {
-      message += `Or open this direct link: ${verificationUriComplete}\n`;
+      message += `Click to authorize: ${verificationUriComplete}\n\n`;
+    } else {
+      message += `Go to: ${verificationUri}\nEnter code: ${userCode}\n\n`;
     }
-    message += `Enter code: ${userCode}\n\nOnce you have authorized in the browser, call the tool again to complete sign-in.`;
+    message += `Once approved, call the tool again to complete sign-in.`;
     super(message);
     this.name = "DeviceAuthorizationRequiredError";
     this.verificationUri = verificationUri;
