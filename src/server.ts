@@ -24,8 +24,7 @@ import { registerBulkTools } from "./tools/bulk.js";
 import { registerTransactionalTools } from "./tools/transactional.js";
 import { ORCHESTRATION_GUIDE } from "./resources/orchestration-guide.js";
 
-export function createServer(): McpServer {
-  const auth = AuthManager.fromEnv();
+export function createServer(auth: AuthManager = AuthManager.fromEnv()): McpServer {
   const client = new AnaplanClient(auth);
 
   const workspaces = new WorkspacesApi(client);

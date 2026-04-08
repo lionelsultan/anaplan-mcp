@@ -35,6 +35,10 @@ export class AnaplanClient {
     return this.requestText("GET", path);
   }
 
+  async getRawBytes(path: string): Promise<Buffer> {
+    return this.requestBytes("GET", path);
+  }
+
   async getAll<T = any>(path: string, key: string | string[]): Promise<T[]> {
     let offset = 0;
     const all: T[] = [];
@@ -170,6 +174,48 @@ export class AnaplanClient {
 
       if (response.ok) {
         return response.text();
+      }
+
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get("Retry-After") || "0", 10);
+        const waitMs = retryAfter > 0 ? retryAfter * 1000 : INITIAL_BACKOFF_MS * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+
+      if (response.status >= 500 && attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, INITIAL_BACKOFF_MS * Math.pow(2, attempt)));
+        continue;
+      }
+
+      const errorText = await response.text().catch(() => "");
+      throw new Error(
+        `Anaplan API error (${response.status}): ${errorText}`
+      );
+    }
+
+    throw new Error(`Anaplan API request failed after ${MAX_RETRIES} retries: ${method} ${path}`);
+  }
+
+  private async requestBytes(method: string, path: string): Promise<Buffer> {
+    const authHeaders = await this.auth.getAuthHeaders();
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const headers: Record<string, string> = {
+        ...authHeaders,
+      };
+
+      const response = await fetch(`${BASE_URL}${path}`, {
+        method,
+        headers,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+
+      if (response.ok) {
+        if (response.status === 204 || response.status === 205) {
+          return Buffer.alloc(0);
+        }
+        return Buffer.from(await response.arrayBuffer());
       }
 
       if (response.status === 429) {

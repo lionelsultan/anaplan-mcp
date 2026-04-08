@@ -1,13 +1,10 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import type { AuthProvider, TokenInfo } from "./types.js";
 import { BasicAuthProvider } from "./basic.js";
 import { CertificateAuthProvider, type CertificateEncodedDataFormat } from "./certificate.js";
 import { OAuthProvider, type AuthorizationCodeOptions } from "./oauth.js";
 
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
-const TOKEN_CACHE_PATH = path.join(os.homedir(), ".anaplan-mcp", "oauth-token");
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // Force re-auth after 60 min inactivity
 
 const NO_CREDS_MSG =
   "No Anaplan credentials configured. Set ANAPLAN_USERNAME/ANAPLAN_PASSWORD, " +
@@ -20,6 +17,7 @@ class DeferredAuthProvider implements AuthProvider {
 
 export class AuthManager {
   private token: TokenInfo | null = null;
+  private lastUsedAt: number | null = null;
   private readonly provider: AuthProvider;
   private readonly providerType: string;
 
@@ -45,19 +43,10 @@ export class AuthManager {
     if (clientId) {
       const authorizationCode = process.env.ANAPLAN_OAUTH_AUTHORIZATION_CODE;
       const redirectUri = process.env.ANAPLAN_OAUTH_REDIRECT_URI;
-      let initialRefreshToken = process.env.ANAPLAN_REFRESH_TOKEN || undefined;
+      const initialRefreshToken = process.env.ANAPLAN_REFRESH_TOKEN || undefined;
       let authCodeOptions: AuthorizationCodeOptions | undefined;
       if (clientSecret && authorizationCode && redirectUri) {
         authCodeOptions = { authorizationCode, redirectUri };
-      }
-      // Fall back to cached refresh token if env var not set
-      if (!initialRefreshToken && !authCodeOptions) {
-        try {
-          const cached = fs.readFileSync(TOKEN_CACHE_PATH, "utf-8").trim();
-          if (cached) initialRefreshToken = cached;
-        } catch {
-          // No cache file yet, that's fine
-        }
       }
       return new AuthManager(new OAuthProvider(clientId, clientSecret, authCodeOptions, initialRefreshToken), "oauth");
     }
@@ -71,11 +60,29 @@ export class AuthManager {
     return new AuthManager(new DeferredAuthProvider(), "none");
   }
 
+  static fromRemoteHttpEnv(): AuthManager {
+    const clientId = process.env.ANAPLAN_CLIENT_ID;
+    if (!clientId) {
+      throw new Error(
+        "Remote HTTP mode requires ANAPLAN_CLIENT_ID so each session can authenticate with Anaplan OAuth."
+      );
+    }
+    return new AuthManager(new OAuthProvider(clientId), "oauth");
+  }
+
   getProviderType(): string {
     return this.providerType;
   }
 
   async getAuthHeaders(): Promise<Record<string, string>> {
+    // Inactivity check: if OAuth and idle for >60 min, clear token to force fresh device grant
+    if (this.providerType === "oauth" && this.token && this.lastUsedAt) {
+      if (Date.now() - this.lastUsedAt > INACTIVITY_TIMEOUT_MS) {
+        this.token = null;
+        this.lastUsedAt = null;
+      }
+    }
+
     if (!this.token || this.isTokenExpiring()) {
       if (this.token) {
         try {
@@ -88,26 +95,13 @@ export class AuthManager {
       } else {
         this.token = await this.provider.authenticate();
       }
-
-      // Cache refresh token after successful OAuth auth so device grant is only needed once
-      if (this.providerType === "oauth" && this.token.refreshTokenId) {
-        this.cacheRefreshToken(this.token.refreshTokenId);
-      }
     }
 
     if (this.providerType === "oauth") {
+      this.lastUsedAt = Date.now();
       return { Authorization: `Bearer ${this.token.tokenValue}` };
     }
     return { Authorization: `AnaplanAuthToken ${this.token.tokenValue}` };
-  }
-
-  private cacheRefreshToken(refreshToken: string): void {
-    try {
-      fs.mkdirSync(path.dirname(TOKEN_CACHE_PATH), { recursive: true });
-      fs.writeFileSync(TOKEN_CACHE_PATH, refreshToken, { mode: 0o600 });
-    } catch {
-      // Non-fatal — skip caching if write fails
-    }
   }
 
   private isTokenExpiring(): boolean {

@@ -34,6 +34,8 @@ interface BulkApis {
   optimizer: OptimizerApi;
 }
 
+const MAX_INLINE_TEXT_CHARS = 50000;
+
 function sanitizeFileName(value: string): string {
   return value
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
@@ -60,6 +62,31 @@ function defaultExportFileName(exportName: string, exportFormat?: string): strin
   return `${safeName}-${timestamp}.${extension}`;
 }
 
+function isInlineTextFormat(exportFormat?: string): boolean {
+  if (!exportFormat) return true;
+  const format = exportFormat.toLowerCase();
+  return format.includes("csv")
+    || format.includes("json")
+    || format.includes("xml")
+    || format.includes("text")
+    || format.includes("plain");
+}
+
+function tryDecodeUtf8(buffer: Buffer): string | null {
+  if (buffer.includes(0)) return null;
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return null;
+  }
+}
+
+function buildTextPreview(text: string): string {
+  return text.length > MAX_INLINE_TEXT_CHARS
+    ? text.slice(0, MAX_INLINE_TEXT_CHARS) + `\n\n[Truncated - showing first ${MAX_INLINE_TEXT_CHARS} of ${text.length} characters]`
+    : text;
+}
+
 export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: NameResolver) {
   server.tool("run_export", "Execute an export and return the data inline. Best for bulk reports across all products/customers/regions -- prefer this over calling read_cells in a loop. Handles the full run-wait-download lifecycle. Use show_exports first.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
@@ -76,23 +103,33 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     if (!fileId) {
       throw new Error(`Export task completed but no output file ID was returned for export ${eId}.`);
     }
+    const exportMetadata = await apis.exports.get(wId, mId, eId);
     const content = await apis.files.download(wId, mId, fileId);
-    const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
-    const preview = text.length > 50000
-      ? text.slice(0, 50000) + `\n\n[Truncated - showing first 50000 of ${text.length} characters]`
-      : text;
+    const text = isInlineTextFormat(exportMetadata?.exportFormat) ? tryDecodeUtf8(content) : null;
+    const preview = text === null ? null : buildTextPreview(text);
 
     if (saveToDownloads) {
-      const exportMetadata = await apis.exports.get(wId, mId, eId);
       const defaultName = defaultExportFileName(exportMetadata?.name ?? `export-${eId}`, exportMetadata?.exportFormat);
       const requestedName = fileName?.trim();
       const resolvedName = sanitizeFileName(requestedName && requestedName.length > 0 ? requestedName : defaultName) || defaultName;
       const outputPath = join(homedir(), "Downloads", resolvedName);
-      await writeFile(outputPath, text, "utf8");
+      await writeFile(outputPath, content);
       return {
         content: [{
           type: "text",
-          text: `Export saved to ${outputPath}\n\nPreview:\n${preview}`,
+          text: preview === null
+            ? `Export saved to ${outputPath} (${content.length} bytes). Inline preview is unavailable for binary exports.`
+            : `Export saved to ${outputPath}\n\nPreview:\n${preview}`,
+        }],
+      };
+    }
+
+    if (preview === null) {
+      const format = exportMetadata?.exportFormat ?? "binary";
+      return {
+        content: [{
+          type: "text",
+          text: `Export format '${format}' cannot be returned inline safely. Set \`saveToDownloads\` to \`true\` to save the file locally.`,
         }],
       };
     }
@@ -170,21 +207,49 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     return { content: [{ type: "text", text: `File ${fId} uploaded successfully.` }] };
   });
 
-  server.tool("download_file", "Download file content from a model. Use show_files to find the fileId.", {
+  server.tool("download_file", "Download file content from a model. Text files are returned inline; for binary files, set saveToDownloads=true to preserve the exact bytes.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
     fileId: z.string().describe("Anaplan file ID or name (from show_files)"),
-  }, async ({ workspaceId, modelId, fileId }) => {
+    saveToDownloads: z.boolean().optional().describe("If true, save the file to ~/Downloads without decoding"),
+    fileName: z.string().optional().describe("Optional local file name when saveToDownloads is true"),
+  }, async ({ workspaceId, modelId, fileId, saveToDownloads, fileName }) => {
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const fId = await resolver.resolveFile(wId, mId, fileId);
     const content = await apis.files.download(wId, mId, fId);
-    const text = typeof content === "string" ? content : JSON.stringify(content, null, 2);
-    if (text.length > 50000) {
+    const text = tryDecodeUtf8(content);
+
+    if (saveToDownloads) {
+      const requestedName = fileName?.trim();
+      const defaultName = sanitizeFileName(fileId) || `file-${fId}`;
+      const resolvedName = sanitizeFileName(requestedName && requestedName.length > 0 ? requestedName : defaultName) || defaultName;
+      const outputPath = join(homedir(), "Downloads", resolvedName);
+      await writeFile(outputPath, content);
       return {
         content: [{
           type: "text",
-          text: text.slice(0, 50000) + `\n\n[Truncated - showing first 50000 of ${text.length} characters]`,
+          text: text === null
+            ? `File saved to ${outputPath} (${content.length} bytes). Inline preview is unavailable for binary content.`
+            : `File saved to ${outputPath}\n\nPreview:\n${buildTextPreview(text)}`,
+        }],
+      };
+    }
+
+    if (text === null) {
+      return {
+        content: [{
+          type: "text",
+          text: "This file contains binary data and cannot be returned inline safely. Set `saveToDownloads` to `true` to save it locally.",
+        }],
+      };
+    }
+
+    if (text.length > MAX_INLINE_TEXT_CHARS) {
+      return {
+        content: [{
+          type: "text",
+          text: buildTextPreview(text),
         }],
       };
     }

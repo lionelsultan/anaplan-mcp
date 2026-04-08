@@ -7,7 +7,7 @@ const mockClient = {
   post: vi.fn(),
   put: vi.fn(),
   delete: vi.fn(),
-  getRaw: vi.fn(),
+  getRawBytes: vi.fn(),
   uploadChunked: vi.fn(),
 };
 
@@ -15,7 +15,7 @@ describe("FilesApi", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mockClient.get.mockReset();
-    mockClient.getRaw.mockReset();
+    mockClient.getRawBytes.mockReset();
   });
 
   describe("download", () => {
@@ -26,21 +26,21 @@ describe("FilesApi", () => {
           { id: "1", name: "chunk1" },
         ],
       });
-      mockClient.getRaw
-        .mockResolvedValueOnce("Header,Col1\n")
-        .mockResolvedValueOnce("Row1,Val1\n");
+      mockClient.getRawBytes
+        .mockResolvedValueOnce(Buffer.from("Header,Col1\n", "utf8"))
+        .mockResolvedValueOnce(Buffer.from("Row1,Val1\n", "utf8"));
 
       const api = new FilesApi(mockClient as any);
       const result = await api.download("ws1", "m1", "f1");
 
-      expect(result).toBe("Header,Col1\nRow1,Val1\n");
+      expect(result.equals(Buffer.from("Header,Col1\nRow1,Val1\n", "utf8"))).toBe(true);
       expect(mockClient.get).toHaveBeenCalledWith(
         "/workspaces/ws1/models/m1/files/f1/chunks"
       );
-      expect(mockClient.getRaw).toHaveBeenCalledWith(
+      expect(mockClient.getRawBytes).toHaveBeenCalledWith(
         "/workspaces/ws1/models/m1/files/f1/chunks/0"
       );
-      expect(mockClient.getRaw).toHaveBeenCalledWith(
+      expect(mockClient.getRawBytes).toHaveBeenCalledWith(
         "/workspaces/ws1/models/m1/files/f1/chunks/1"
       );
     });
@@ -51,21 +51,33 @@ describe("FilesApi", () => {
       const api = new FilesApi(mockClient as any);
       const result = await api.download("ws1", "m1", "f1");
 
-      expect(result).toBe("");
-      expect(mockClient.getRaw).not.toHaveBeenCalled();
+      expect(result.equals(Buffer.alloc(0))).toBe(true);
+      expect(mockClient.getRawBytes).not.toHaveBeenCalled();
     });
 
     it("handles single chunk file", async () => {
       mockClient.get.mockResolvedValue({
         chunks: [{ id: "0", name: "chunk0" }],
       });
-      mockClient.getRaw.mockResolvedValueOnce("all data here");
+      mockClient.getRawBytes.mockResolvedValueOnce(Buffer.from("all data here", "utf8"));
 
       const api = new FilesApi(mockClient as any);
       const result = await api.download("ws1", "m1", "f1");
 
-      expect(result).toBe("all data here");
-      expect(mockClient.getRaw).toHaveBeenCalledTimes(1);
+      expect(result.equals(Buffer.from("all data here", "utf8"))).toBe(true);
+      expect(mockClient.getRawBytes).toHaveBeenCalledTimes(1);
+    });
+
+    it("preserves binary bytes without UTF-8 conversion", async () => {
+      mockClient.get.mockResolvedValue({
+        chunks: [{ id: "0", name: "chunk0" }],
+      });
+      mockClient.getRawBytes.mockResolvedValueOnce(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff]));
+
+      const api = new FilesApi(mockClient as any);
+      const result = await api.download("ws1", "m1", "f1");
+
+      expect([...result]).toEqual([0x50, 0x4b, 0x03, 0x04, 0xff]);
     });
   });
 

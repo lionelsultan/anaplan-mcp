@@ -1,13 +1,9 @@
-import fs from "node:fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthManager } from "./manager.js";
 
 describe("AuthManager", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(fs, "readFileSync").mockImplementation(() => { throw new Error("ENOENT"); });
-    vi.spyOn(fs, "writeFileSync").mockImplementation(() => {});
-    vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined);
     delete process.env.ANAPLAN_USERNAME;
     delete process.env.ANAPLAN_PASSWORD;
     delete process.env.ANAPLAN_CLIENT_ID;
@@ -64,46 +60,18 @@ describe("AuthManager", () => {
     expect(manager.getProviderType()).toBe("oauth");
   });
 
-  it("reads cached refresh token from disk when ANAPLAN_REFRESH_TOKEN is not set", async () => {
+  it("builds remote HTTP auth from OAuth client env only", () => {
     process.env.ANAPLAN_CLIENT_ID = "cid";
-    vi.mocked(fs.readFileSync).mockReturnValueOnce("cached-refresh-token" as unknown as Buffer);
+    process.env.ANAPLAN_USERNAME = "user";
+    process.env.ANAPLAN_PASSWORD = "pass";
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        access_token: "bearer-token",
-        token_type: "Bearer",
-        expires_in: 2100,
-        refresh_token: "new-refresh",
-      }),
-    } as Response);
+    const manager = AuthManager.fromRemoteHttpEnv();
 
-    const manager = AuthManager.fromEnv();
-    const headers = await manager.getAuthHeaders();
-    expect(headers.Authorization).toBe("Bearer bearer-token");
+    expect(manager.getProviderType()).toBe("oauth");
   });
 
-  it("writes refresh token to cache after successful OAuth auth", async () => {
-    process.env.ANAPLAN_CLIENT_ID = "cid";
-    process.env.ANAPLAN_REFRESH_TOKEN = "stored-refresh";
-
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        access_token: "bearer-token",
-        token_type: "Bearer",
-        expires_in: 2100,
-        refresh_token: "new-refresh",
-      }),
-    } as Response);
-
-    const manager = AuthManager.fromEnv();
-    await manager.getAuthHeaders();
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining("oauth-token"),
-      "new-refresh",
-      { mode: 0o600 }
-    );
+  it("throws when remote HTTP auth is missing ANAPLAN_CLIENT_ID", () => {
+    expect(() => AuthManager.fromRemoteHttpEnv()).toThrow("Remote HTTP mode requires ANAPLAN_CLIENT_ID");
   });
 
   it("uses ANAPLAN_REFRESH_TOKEN to skip device grant on first auth call", async () => {
@@ -173,5 +141,68 @@ describe("AuthManager", () => {
     await manager.getAuthHeaders();
     const headers = await manager.getAuthHeaders();
     expect(headers.Authorization).toBe("AnaplanAuthToken refreshed");
+  });
+
+  it("forces re-auth via device grant after 60 min OAuth inactivity", async () => {
+    process.env.ANAPLAN_CLIENT_ID = "cid";
+    process.env.ANAPLAN_REFRESH_TOKEN = "stored-refresh";
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    // First call: initial auth via refresh token
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        access_token: "bearer-token",
+        token_type: "Bearer",
+        expires_in: 7200,
+        refresh_token: "new-refresh",
+      }),
+    } as Response);
+
+    // Second call: device code request after inactivity expires
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        device_code: "dc",
+        user_code: "ABCD-1234",
+        verification_uri: "https://example.com/device",
+        expires_in: 300,
+        interval: 5,
+      }),
+    } as Response);
+
+    const manager = AuthManager.fromEnv();
+    await manager.getAuthHeaders();
+
+    // Simulate 61 minutes of inactivity
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 61 * 60 * 1000);
+
+    // Next call should attempt device grant → throws DeviceAuthorizationRequiredError
+    await expect(manager.getAuthHeaders()).rejects.toThrow("Anaplan authorization required");
+  });
+
+  it("does not force re-auth when OAuth is used within 60 min", async () => {
+    process.env.ANAPLAN_CLIENT_ID = "cid";
+    process.env.ANAPLAN_REFRESH_TOKEN = "stored-refresh";
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: "bearer-token",
+        token_type: "Bearer",
+        expires_in: 7200,
+        refresh_token: "new-refresh",
+      }),
+    } as Response);
+
+    const manager = AuthManager.fromEnv();
+    await manager.getAuthHeaders();
+
+    // Simulate 30 minutes of activity (within window)
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 30 * 60 * 1000);
+
+    const headers = await manager.getAuthHeaders();
+    expect(headers.Authorization).toBe("Bearer bearer-token");
   });
 });

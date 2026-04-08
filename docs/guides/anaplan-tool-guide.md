@@ -72,18 +72,18 @@ This guide maps common questions and tasks to the correct MCP tool sequences. Us
 
 ---
 
-### Bulk Tools (26) — execute actions, mutate state
+### Bulk Tools (28) — execute actions, mutate state
 
 **Data Operations**
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| `run_export` | Execute export, return data inline | Polls until complete. Use `saveToDownloads=true` to save file locally. |
+| `run_export` | Execute export, return data inline when safe | Polls until complete. Use `saveToDownloads=true` for binary exports or to save the full file locally. |
 | `run_import` | Upload data then execute import | Internally handles upload + task execution. No need to call `upload_file` separately. |
 | `run_process` | Execute a process (chained actions) | Returns nestedResults per step. |
 | `run_delete` | Execute a delete action | Irreversible. |
 | `upload_file` | Upload CSV/text to an Anaplan file | Use standalone when preparing data for a process, or when multiple imports share a file. Not needed before `run_import`. |
-| `download_file` | Download file content | Returns text (truncated at 50k chars). |
+| `download_file` | Download file content | Text files return inline (truncated at 50k chars). Binary files should use `saveToDownloads=true`. |
 | `delete_file` | Delete a private file | Irreversible. |
 
 **Task Management**
@@ -124,11 +124,18 @@ This guide maps common questions and tasks to the correct MCP tool sequences. Us
 | `get_view_readrequest` | Poll status (COMPLETE/IN_PROGRESS/FAILED) |
 | `get_view_readrequest_page` | Download one page (0-based, CSV) |
 | `delete_view_readrequest` | Clean up after all pages downloaded |
+| `preview_list` | Preview up to 1000 CSV rows from a large list before starting a full request |
 | `create_list_readrequest` | Start async read for large list |
 | `get_list_readrequest` | Poll status |
 | `get_list_readrequest_page` | Download one page |
 | `delete_list_readrequest` | Clean up |
-| `reset_list_index` | Reset index on empty list |
+| `reset_list_index` | Reset list item index numbering |
+
+**Optimizer**
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `download_optimizer_log` | Download the solver log for a completed optimizer action | Requires `correlationId` from the Anaplan UI. Logs expire after ~48 hours. |
 
 ---
 
@@ -317,10 +324,11 @@ Q: "Update numbered list items"
 
 Q: "Read a list with millions of items"
 1. show_lists             → get listId
-2. create_list_readrequest
-3. get_list_readrequest   → poll until COMPLETE
-4. get_list_readrequest_page(pageNo=0,1,2...)
-5. delete_list_readrequest
+2. [Optional] preview_list → inspect a quick CSV sample first
+3. create_list_readrequest
+4. get_list_readrequest   → poll until COMPLETE
+5. get_list_readrequest_page(pageNo=0,1,2...)
+6. delete_list_readrequest
 ```
 
 ### Debug & Monitor
@@ -344,6 +352,9 @@ Q: "Is the model busy / what is it doing?"
 Q: "Cancel a running task"
 → show_tasks(actionType, actionId)   → get taskId
 → cancel_task(actionType, actionId, taskId)
+
+Q: "Download the Optimizer solver log"
+→ download_optimizer_log(workspace, model, actionId, correlationId)
 ```
 
 ### Model Administration

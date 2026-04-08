@@ -15,21 +15,21 @@ flowchart LR
     end
 
     subgraph CLIENT["AI Client Layer"]
-        C[Claude Desktop / Claude Code / MCP Client]
+        C[Claude Desktop / Claude Code / claude.ai / ChatGPT / MCP Client]
         P[Natural language prompt]
         TR[Tool selection by assistant]
     end
 
     subgraph SERVER["Anaplan MCP Server"]
-        S[stdio MCP server]
+        S[MCP transport<br/>stdio or Streamable HTTP]
         V[Input validation<br/>zod schemas]
-        AH[Auth check / token retrieval<br/>AuthManager]
+        AH[AuthManager<br/>process-scoped in stdio<br/>session-scoped in HTTP]
         TL[Tool handler]
         API[AnaplanClient + domain wrappers]
         F[Structured result formatting]
     end
 
-    subgraph AUTH["Configured Auth Providers"]
+    subgraph AUTH["Anaplan Auth Paths"]
         A1[Certificate auth]
         A2[OAuth device grant]
         A3[OAuth authorization code]
@@ -86,11 +86,12 @@ sequenceDiagram
     participant Anaplan as Anaplan API v2
 
     User->>Client: Ask for data or action
-    Client->>MCP: Invoke MCP tool over stdio
+    Client->>MCP: Invoke MCP tool over stdio or HTTP
     MCP->>Tool: Route selected tool
     Tool->>Tool: Validate inputs
     Tool->>Auth: Ensure valid token exists
-    Auth->>Provider: Use configured auth method
+    Note over Client,Auth: Remote HTTP sessions use a fresh AuthManager and per-session Anaplan OAuth
+    Auth->>Provider: Use configured auth method for this session
     Provider-->>Auth: Access token
     Auth-->>Tool: Valid token
     Tool->>API: Execute endpoint call
@@ -112,8 +113,8 @@ How the server maps user intent to Anaplan permissions without adding any new pr
 flowchart TD
     U[User request in plain English] --> C[AI assistant selects tool]
     C --> V[Validate tool arguments]
-    V --> A[Authenticate using configured Anaplan credentials]
-    A --> P[Apply existing Anaplan permissions]
+    V --> A[Authenticate using configured credentials<br/>or per-session Anaplan OAuth]
+    A --> P[Apply existing Anaplan permissions for that identity]
     P --> D{Requested operation type}
 
     D -->|Read| R[Browse / inspect / read data]
@@ -131,4 +132,4 @@ flowchart TD
     N[No new privileges created by MCP] --> P
 ```
 
-The server never creates new access rights. Every operation is bound by the permissions already configured on the Anaplan account used for authentication.
+The server never creates new access rights. Every operation is bound by the permissions already attached to the Anaplan identity used for that session: the locally configured credentials in stdio mode, or the remote user's session-scoped OAuth identity in HTTP mode.

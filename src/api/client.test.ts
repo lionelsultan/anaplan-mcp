@@ -62,6 +62,20 @@ describe("AnaplanClient", () => {
     expect(result).toBe("raw,csv,data");
   });
 
+  it("getRawBytes returns the exact response bytes", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => Uint8Array.from([0x50, 0x4b, 0x03, 0x04]).buffer,
+    } as Response);
+
+    const client = new AnaplanClient(mockAuthManager as any);
+    const result = await client.getRawBytes("/files/123/chunks/0");
+
+    expect(Buffer.isBuffer(result)).toBe(true);
+    expect([...result]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+  });
+
   it("retries on 429 with backoff", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce({ ok: false, status: 429, headers: new Headers({ "Retry-After": "0" }), json: async () => ({}) } as Response)

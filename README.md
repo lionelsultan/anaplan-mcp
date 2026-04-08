@@ -140,7 +140,7 @@ For other auth methods, use the same structure with a different `env` block:
 }
 ```
 
-On first use, Claude shows a link in chat — click it, approve in Anaplan, then retry your request. The refresh token is cached automatically to `~/.anaplan-mcp/oauth-token`, so you won't be prompted again on future restarts.
+On first use, Claude shows a link in chat — click it, approve in Anaplan, then retry your request. OAuth tokens are kept in memory only. If the MCP process restarts, or an OAuth session is idle for more than 60 minutes, you'll be prompted to authorize again unless you provide `ANAPLAN_REFRESH_TOKEN` yourself.
 
 **OAuth2 (authorization code) - non-interactive:**
 ```json
@@ -186,6 +186,8 @@ Any MCP-compatible client that supports stdio transport can connect. The server 
 
 The server also supports **Streamable HTTP transport** for remote MCP connections from [claude.ai](https://claude.ai), [ChatGPT](https://chatgpt.com), and other browser-based AI assistants. Deploy to a cloud platform (Fly.io recommended) and connect via the remote MCP integration settings.
 
+Remote HTTP mode is designed for **per-session Anaplan OAuth**, not a single shared Anaplan user. Set `ANAPLAN_CLIENT_ID` on the server so each remote session can authorize against Anaplan with its own identity. If you want an extra outer gate in front of the endpoint, you can also set `ANAPLAN_MCP_HTTP_AUTH_TOKEN` and have your client or reverse proxy send it as `Authorization: Bearer <token>`.
+
 See the **[Remote Deployment Guide](docs/guides/deploying-remote.md)** for full setup instructions, platform recommendations, and troubleshooting.
 
 ## Configuration
@@ -197,11 +199,21 @@ All configuration is done through environment variables. There are no config fil
 | Method | Env Vars | Description |
 |--------|----------|-------------|
 | Certificate | `ANAPLAN_CERTIFICATE_PATH`, `ANAPLAN_PRIVATE_KEY_PATH`, `ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` (optional) | Highest priority. PEM certificate + private key, authenticates via CACertificate flow. Data format defaults to `v2` |
-| OAuth2 (device grant) | `ANAPLAN_CLIENT_ID` | Device authorization flow. Claude shows you the URL and code in chat; authorize in browser then retry. Refresh token cached automatically — no browser prompt on subsequent startups |
+| OAuth2 (device grant) | `ANAPLAN_CLIENT_ID` | Device authorization flow. Claude shows you the URL and code in chat; authorize in browser then retry. Tokens stay in memory only, so restart or >60 minutes of idle time requires another device login unless you set `ANAPLAN_REFRESH_TOKEN` manually |
 | OAuth2 (authorization code) | `ANAPLAN_CLIENT_ID`, `ANAPLAN_CLIENT_SECRET`, `ANAPLAN_OAUTH_AUTHORIZATION_CODE`, `ANAPLAN_OAUTH_REDIRECT_URI` | Non-interactive. Requires all four env vars. Code is single-use |
 | Basic | `ANAPLAN_USERNAME`, `ANAPLAN_PASSWORD` | Lowest priority. Email + password, sends base64 credentials to auth endpoint |
 
 You only need one set of credentials. If multiple are configured, the server picks the highest-priority method automatically.
+
+### HTTP transport security
+
+These apply only to `npm run start:http` / remote MCP deployments:
+
+| Variable | Description |
+|----------|-------------|
+| `ANAPLAN_CLIENT_ID` | Required for remote HTTP mode. Each HTTP session uses this OAuth client to authenticate the end user with Anaplan |
+| `ANAPLAN_MCP_HTTP_AUTH_TOKEN` | Optional extra edge protection. When set, callers must also send it as `Authorization: Bearer <token>`. `MCP_HTTP_AUTH_TOKEN` is accepted as an alias |
+| `ANAPLAN_MCP_HTTP_BODY_LIMIT` | Optional JSON body limit for remote HTTP requests. Defaults to `100mb` to support large `run_import` and `upload_file` payloads. `MCP_HTTP_BODY_LIMIT` is accepted as an alias |
 
 ### Where to set environment variables
 
@@ -288,7 +300,7 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 | `run_process` | Run process task and poll completion<br>`POST .../processes/{processId}/tasks` |
 | `run_delete` | Run delete action task<br>`POST .../actions/{deleteActionId}/tasks` |
 | `upload_file` | Initialize chunked upload, upload chunks, and complete file upload<br>`POST .../files/{fileId}` |
-| `download_file` | Download file by reading all chunk payloads<br>`GET .../files/{fileId}/chunks` |
+| `download_file` | Download file by reading all chunk payloads. Text returns inline; binary files should use `saveToDownloads`<br>`GET .../files/{fileId}/chunks` |
 | `delete_file` | Delete model file (irreversible)<br>`DELETE .../files/{fileId}` |
 | `get_action_status` | Get status for import/export/process/action task<br>`GET .../{actionType}/{actionId}/tasks/{taskId}` |
 | `close_model` | Close (archive) a model<br>`POST .../models/{modelId}/close` |
@@ -342,11 +354,12 @@ Every tool description also includes prerequisite hints ("Use show_imports first
 ```
 src/
   auth/       # Authentication providers (basic, certificate, oauth) + token manager
-  api/        # HTTP client with retry logic + 16 domain-specific API wrappers
+  api/        # HTTP client with retry logic + 17 domain-specific API wrappers
   tools/      # MCP tool registrations (exploration, bulk, transactional) + response hints
   resources/  # MCP resource content (orchestration guide)
   server.ts   # Wires auth > client > APIs > MCP server + registers resources
   index.ts    # Entry point (stdio transport)
+  http.ts     # Entry point (Streamable HTTP transport)
 
 docs/
   api/        # Anaplan API reference docs (Integration, ALM, SCIM, CloudWorks, Audit)
@@ -359,7 +372,7 @@ examples/     # Example output - FY26 Sales Forecast deck generated via MCP
 Three layers:
 
 1. **Auth layer** - pluggable providers behind a common `AuthProvider` interface. The `AuthManager` selects the right provider from env vars and handles token lifecycle.
-2. **API layer** - `AnaplanClient` handles all HTTP communication with the Anaplan API. 16 domain wrappers provide typed methods for each endpoint. Auto-paginates list endpoints using Anaplan's `meta.paging` metadata.
+2. **API layer** - `AnaplanClient` handles all HTTP communication with the Anaplan API. 17 domain wrappers provide typed methods for each endpoint. Auto-paginates list endpoints using Anaplan's `meta.paging` metadata.
 3. **Tools layer** - registers MCP tools on the server with zod schemas for input validation. Each tool delegates to the appropriate API wrapper and formats results. Key tools include next-step hints to guide multi-tool workflows.
 
 For detailed runtime diagrams (request flow, trust boundary, subsystem map) see [docs/architecture/overview.md](docs/architecture/overview.md).

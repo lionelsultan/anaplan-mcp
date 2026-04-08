@@ -23,18 +23,18 @@ export class FilesApi {
     );
   }
 
-  async download(workspaceId: string, modelId: string, fileId: string): Promise<string> {
+  async download(workspaceId: string, modelId: string, fileId: string): Promise<Buffer> {
     const res = await this.client.get<any>(
       `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}/chunks`
     );
     const chunks: Array<{ id: string; name: string }> = res.chunks ?? [];
-    const parts: string[] = [];
+    const parts: Buffer[] = [];
     for (const chunk of chunks) {
-      const data = await this.client.getRaw(
+      const data = await this.client.getRawBytes(
         `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}/chunks/${chunk.id}`
       );
       parts.push(data);
     }
-    return parts.join("");
+    return Buffer.concat(parts);
   }
 }
