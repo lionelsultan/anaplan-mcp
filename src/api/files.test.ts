@@ -79,6 +79,24 @@ describe("FilesApi", () => {
 
       expect([...result]).toEqual([0x50, 0x4b, 0x03, 0x04, 0xff]);
     });
+
+    it("fails when the download exceeds the configured byte limit", async () => {
+      mockClient.get.mockResolvedValue({
+        chunks: [
+          { id: "0", name: "chunk0" },
+          { id: "1", name: "chunk1" },
+        ],
+      });
+      mockClient.getRawBytes
+        .mockResolvedValueOnce(Buffer.from("12345", "utf8"))
+        .mockResolvedValueOnce(Buffer.from("67890", "utf8"));
+
+      const api = new FilesApi(mockClient as any);
+
+      await expect(api.download("ws1", "m1", "f1", { maxBytes: 8 }))
+        .rejects
+        .toThrow("File download exceeds the inline limit of 8 bytes");
+    });
   });
 
   describe("delete", () => {

@@ -178,7 +178,7 @@ Any MCP-compatible client that supports stdio transport can connect. The server 
 
 The server also supports **Streamable HTTP transport** for remote MCP connections from [claude.ai](https://claude.ai), [ChatGPT](https://chatgpt.com), and other browser-based AI assistants. Deploy to a cloud platform (Fly.io recommended) and connect via the remote MCP integration settings.
 
-Remote HTTP mode is designed for **per-session Anaplan OAuth**, not a single shared Anaplan user. Set `ANAPLAN_CLIENT_ID` on the server so each remote session can authorize against Anaplan with its own identity. If you want an extra outer gate in front of the endpoint, you can also set `ANAPLAN_MCP_HTTP_AUTH_TOKEN` and have your client or reverse proxy send it as `Authorization: Bearer <token>`.
+Remote HTTP mode is designed for **per-session Anaplan OAuth**, not a single shared Anaplan user. Set `ANAPLAN_CLIENT_ID` on the server so each remote session can authorize against Anaplan with its own identity. Remote HTTP deployments must also set `ANAPLAN_MCP_HTTP_AUTH_TOKEN` and have the client or reverse proxy send it as `Authorization: Bearer <token>`.
 
 See the **[Remote Deployment Guide](docs/guides/deploying-remote.md)** for full setup instructions, platform recommendations, and troubleshooting.
 
@@ -203,8 +203,9 @@ These apply only to `npm run start:http` / remote MCP deployments:
 | Variable | Description |
 |----------|-------------|
 | `ANAPLAN_CLIENT_ID` | Required for remote HTTP mode. Each HTTP session uses this OAuth client to authenticate the end user with Anaplan |
-| `ANAPLAN_MCP_HTTP_AUTH_TOKEN` | Optional extra edge protection. When set, callers must also send it as `Authorization: Bearer <token>`. `MCP_HTTP_AUTH_TOKEN` is accepted as an alias |
+| `ANAPLAN_MCP_HTTP_AUTH_TOKEN` | Required for remote HTTP mode. Callers must also send it as `Authorization: Bearer <token>`. `MCP_HTTP_AUTH_TOKEN` is accepted as an alias |
 | `ANAPLAN_MCP_HTTP_BODY_LIMIT` | Optional JSON body limit for remote HTTP requests. Defaults to `100mb` to support large `run_import` and `upload_file` payloads. `MCP_HTTP_BODY_LIMIT` is accepted as an alias |
+| `ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT` | Optional inline download ceiling for remote HTTP mode. Defaults to `10mb`. Accepts bytes or `KB`/`MB`/`GB` suffixes |
 
 ### Where to set environment variables
 
@@ -286,12 +287,12 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 
 | Tool | Description |
 |------|-------------|
-| `run_export` | Run export task, download output, optionally save locally with `saveToDownloads` and `fileName`<br>`POST .../exports/{exportId}/tasks` |
+| `run_export` | Run export task, download output, optionally save locally with `saveToDownloads` and `fileName` in stdio mode only<br>`POST .../exports/{exportId}/tasks` |
 | `run_import` | Upload file chunks, run import, and poll task completion<br>`POST .../imports/{importId}/tasks` |
 | `run_process` | Run process task and poll completion<br>`POST .../processes/{processId}/tasks` |
 | `run_delete` | Run delete action task<br>`POST .../actions/{deleteActionId}/tasks` |
 | `upload_file` | Initialize chunked upload, upload chunks, and complete file upload<br>`POST .../files/{fileId}` |
-| `download_file` | Download file by reading all chunk payloads. Text returns inline; binary files should use `saveToDownloads`<br>`GET .../files/{fileId}/chunks` |
+| `download_file` | Download file by reading all chunk payloads. Text returns inline; binary files should use `saveToDownloads` in stdio mode only<br>`GET .../files/{fileId}/chunks` |
 | `delete_file` | Delete model file (irreversible)<br>`DELETE .../files/{fileId}` |
 | `get_action_status` | Get status for import/export/process/action task<br>`GET .../{actionType}/{actionId}/tasks/{taskId}` |
 | `close_model` | Close (archive) a model<br>`POST .../models/{modelId}/close` |

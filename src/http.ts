@@ -10,6 +10,7 @@ import { createServer } from "./server.js";
 
 const DEFAULT_PORT = parseInt(process.env.PORT || process.env.MCP_PORT || "3000", 10);
 const DEFAULT_HTTP_BODY_LIMIT = "100mb";
+const DEFAULT_HTTP_INLINE_DOWNLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
 
 export interface HttpAuthConfig {
   bearerToken: string | null;
@@ -37,10 +38,42 @@ export function loadHttpBodyLimit(env: NodeJS.ProcessEnv = process.env): string 
     ?? DEFAULT_HTTP_BODY_LIMIT;
 }
 
+function parseByteLimit(value: string): number {
+  const match = value.trim().match(/^(\d+)\s*(b|kb|mb|gb)?$/i);
+  if (!match) {
+    throw new Error(
+      "ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT must be an integer number of bytes or use KB/MB/GB suffixes."
+    );
+  }
+
+  const amount = Number.parseInt(match[1], 10);
+  const suffix = (match[2] ?? "b").toLowerCase();
+  const multiplierMap: Record<string, number> = {
+    b: 1,
+    kb: 1024,
+    mb: 1024 * 1024,
+    gb: 1024 * 1024 * 1024,
+  };
+  return amount * multiplierMap[suffix];
+}
+
+export function loadHttpInlineDownloadLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const configuredLimit = trimToNull(env.ANAPLAN_MCP_HTTP_INLINE_DOWNLOAD_LIMIT);
+  if (!configuredLimit) {
+    return DEFAULT_HTTP_INLINE_DOWNLOAD_LIMIT_BYTES;
+  }
+  return parseByteLimit(configuredLimit);
+}
+
 export function validateRemoteHttpEnv(env: NodeJS.ProcessEnv = process.env): void {
   if (!trimToNull(env.ANAPLAN_CLIENT_ID)) {
     throw new Error(
       "Remote HTTP mode requires ANAPLAN_CLIENT_ID so each session can authenticate with Anaplan OAuth."
+    );
+  }
+  if (!trimToNull(env.ANAPLAN_MCP_HTTP_AUTH_TOKEN ?? env.MCP_HTTP_AUTH_TOKEN)) {
+    throw new Error(
+      "Remote HTTP mode requires ANAPLAN_MCP_HTTP_AUTH_TOKEN to protect the public MCP endpoint."
     );
   }
 }
@@ -97,22 +130,38 @@ function sendUnauthorized(res: express.Response): void {
   });
 }
 
+export function createAuthorizedJsonBodyParser(
+  config: HttpAuthConfig,
+  jsonBodyParser: express.RequestHandler,
+): express.RequestHandler {
+  return (req, res, next) => {
+    if (!isAuthorizedRequest(req, config)) {
+      sendUnauthorized(res);
+      return;
+    }
+    jsonBodyParser(req, res, next);
+  };
+}
+
 export function createHttpApp(
   config: HttpAuthConfig = loadHttpAuthConfig(),
-  dependencies?: { serverFactory?: typeof createServer },
+  dependencies?: {
+    serverFactory?: typeof createServer;
+    jsonParserFactory?: typeof express.json;
+  },
 ): express.Express {
   validateRemoteHttpEnv();
 
   const transports: Record<string, StreamableHTTPServerTransport> = {};
   const serverFactory = dependencies?.serverFactory ?? createServer;
+  const jsonParserFactory = dependencies?.jsonParserFactory ?? express.json;
   const app = express();
 
   app.use((req, _res, next) => {
     console.error(`[${new Date().toISOString()}] ${req.method} ${req.path} accept=${req.headers["accept"] ?? "none"} origin=${req.headers["origin"] ?? "none"} session=${req.headers["mcp-session-id"] ?? "none"}`);
     next();
   });
-
-  app.use(express.json({ limit: loadHttpBodyLimit() }));
+  const jsonBodyParser = jsonParserFactory({ limit: loadHttpBodyLimit() });
 
   function mcpCors(req: express.Request, res: express.Response, next: express.NextFunction) {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -140,12 +189,9 @@ export function createHttpApp(
     res.json({ status: "ok" });
   });
 
-  async function handlePost(req: express.Request, res: express.Response) {
-    if (!isAuthorizedRequest(req, config)) {
-      sendUnauthorized(res);
-      return;
-    }
+  const parseAuthorizedJsonBody = createAuthorizedJsonBodyParser(config, jsonBodyParser);
 
+  async function handlePost(req: express.Request, res: express.Response) {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     try {
@@ -176,7 +222,10 @@ export function createHttpApp(
             delete transports[sid];
           }
         };
-        const mcpServer = serverFactory(AuthManager.fromRemoteHttpEnv());
+        const mcpServer = serverFactory(AuthManager.fromRemoteHttpEnv(), {
+          transportMode: "http",
+          httpInlineDownloadLimitBytes: loadHttpInlineDownloadLimit(),
+        });
         await mcpServer.connect(transport);
         await transport.handleRequest(req, res, req.body);
         return;
@@ -190,7 +239,8 @@ export function createHttpApp(
       }
       await transport.handleRequest(req, res, req.body);
     } catch (err) {
-      console.error("Error handling POST:", err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      console.error(`Error handling POST: ${errorMessage}`);
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: "2.0",
@@ -230,10 +280,10 @@ export function createHttpApp(
     await transports[sessionId].handleRequest(req, res);
   }
 
-  app.post("/mcp", handlePost);
+  app.post("/mcp", parseAuthorizedJsonBody, handlePost);
   app.get("/mcp", handleGet);
   app.delete("/mcp", handleDelete);
-  app.post("/", handlePost);
+  app.post("/", parseAuthorizedJsonBody, handlePost);
   app.get("/", handleGet);
   app.delete("/", handleDelete);
 

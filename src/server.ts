@@ -24,8 +24,20 @@ import { registerBulkTools } from "./tools/bulk.js";
 import { registerTransactionalTools } from "./tools/transactional.js";
 import { ORCHESTRATION_GUIDE } from "./resources/orchestration-guide.js";
 
-export function createServer(auth: AuthManager = AuthManager.fromEnv()): McpServer {
+export interface ServerRuntimeOptions {
+  transportMode?: "stdio" | "http";
+  httpInlineDownloadLimitBytes?: number;
+}
+
+export function createServer(
+  auth: AuthManager = AuthManager.fromEnv(),
+  options: ServerRuntimeOptions = {},
+): McpServer {
   const client = new AnaplanClient(auth);
+  const runtimeOptions: Required<ServerRuntimeOptions> = {
+    transportMode: options.transportMode ?? "stdio",
+    httpInlineDownloadLimitBytes: options.httpInlineDownloadLimitBytes ?? 10 * 1024 * 1024,
+  };
 
   const workspaces = new WorkspacesApi(client);
   const models = new ModelsApi(client);
@@ -58,7 +70,7 @@ export function createServer(auth: AuthManager = AuthManager.fromEnv()): McpServ
 
   registerBulkTools(server, {
     imports, exports, processes, files, client, modelManagement, calendar, versions, lists, largeReads, actions, optimizer,
-  }, resolver);
+  }, resolver, runtimeOptions);
 
   registerTransactionalTools(server, transactional, resolver);
 

@@ -17,6 +17,7 @@ import type { LargeReadsApi } from "../api/largeReads.js";
 import type { ActionsApi } from "../api/actions.js";
 import type { OptimizerApi } from "../api/optimizer.js";
 import { withNextSteps } from "./hints.js";
+import type { ServerRuntimeOptions } from "../server.js";
 
 // Bulk concurrency ceiling: 21 parallel tasks per model (ls21)
 interface BulkApis {
@@ -35,6 +36,15 @@ interface BulkApis {
 }
 
 const MAX_INLINE_TEXT_CHARS = 50000;
+
+export function assertLocalFileSaveAllowed(
+  saveToDownloads: boolean | undefined,
+  runtimeOptions: Required<ServerRuntimeOptions>,
+): void {
+  if (saveToDownloads && runtimeOptions.transportMode === "http") {
+    throw new Error("saveToDownloads is only available in local stdio mode.");
+  }
+}
 
 function sanitizeFileName(value: string): string {
   return value
@@ -87,7 +97,12 @@ function buildTextPreview(text: string): string {
     : text;
 }
 
-export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: NameResolver) {
+export function registerBulkTools(
+  server: McpServer,
+  apis: BulkApis,
+  resolver: NameResolver,
+  runtimeOptions: Required<ServerRuntimeOptions>,
+) {
   server.tool("run_export", "Execute an export and return the data inline. Best for bulk reports across all products/customers/regions -- prefer this over calling read_cells in a loop. Handles the full run-wait-download lifecycle. Use show_exports first.", {
     workspaceId: z.string().describe("Anaplan workspace ID or name"),
     modelId: z.string().describe("Anaplan model ID or name"),
@@ -95,6 +110,7 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     saveToDownloads: z.boolean().optional().describe("If true, save the exported file to ~/Downloads"),
     fileName: z.string().optional().describe("Optional local file name when saveToDownloads is true"),
   }, async ({ workspaceId, modelId, exportId, saveToDownloads, fileName }) => {
+    assertLocalFileSaveAllowed(saveToDownloads, runtimeOptions);
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const eId = await resolver.resolveExport(wId, mId, exportId);
@@ -104,7 +120,11 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
       throw new Error(`Export task completed but no output file ID was returned for export ${eId}.`);
     }
     const exportMetadata = await apis.exports.get(wId, mId, eId);
-    const content = await apis.files.download(wId, mId, fileId);
+    const content = await apis.files.download(wId, mId, fileId, {
+      maxBytes: runtimeOptions.transportMode === "http"
+        ? runtimeOptions.httpInlineDownloadLimitBytes
+        : undefined,
+    });
     const text = isInlineTextFormat(exportMetadata?.exportFormat) ? tryDecodeUtf8(content) : null;
     const preview = text === null ? null : buildTextPreview(text);
 
@@ -214,10 +234,15 @@ export function registerBulkTools(server: McpServer, apis: BulkApis, resolver: N
     saveToDownloads: z.boolean().optional().describe("If true, save the file to ~/Downloads without decoding"),
     fileName: z.string().optional().describe("Optional local file name when saveToDownloads is true"),
   }, async ({ workspaceId, modelId, fileId, saveToDownloads, fileName }) => {
+    assertLocalFileSaveAllowed(saveToDownloads, runtimeOptions);
     const wId = await resolver.resolveWorkspace(workspaceId);
     const mId = await resolver.resolveModel(wId, modelId);
     const fId = await resolver.resolveFile(wId, mId, fileId);
-    const content = await apis.files.download(wId, mId, fId);
+    const content = await apis.files.download(wId, mId, fId, {
+      maxBytes: runtimeOptions.transportMode === "http"
+        ? runtimeOptions.httpInlineDownloadLimitBytes
+        : undefined,
+    });
     const text = tryDecodeUtf8(content);
 
     if (saveToDownloads) {

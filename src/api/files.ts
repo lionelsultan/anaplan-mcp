@@ -23,16 +23,28 @@ export class FilesApi {
     );
   }
 
-  async download(workspaceId: string, modelId: string, fileId: string): Promise<Buffer> {
+  async download(
+    workspaceId: string,
+    modelId: string,
+    fileId: string,
+    options?: { maxBytes?: number },
+  ): Promise<Buffer> {
     const res = await this.client.get<any>(
       `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}/chunks`
     );
     const chunks: Array<{ id: string; name: string }> = res.chunks ?? [];
     const parts: Buffer[] = [];
+    let totalBytes = 0;
     for (const chunk of chunks) {
       const data = await this.client.getRawBytes(
         `/workspaces/${workspaceId}/models/${modelId}/files/${fileId}/chunks/${chunk.id}`
       );
+      totalBytes += data.length;
+      if (options?.maxBytes !== undefined && totalBytes > options.maxBytes) {
+        throw new Error(
+          `File download exceeds the inline limit of ${options.maxBytes} bytes. Save locally in stdio mode or narrow the export.`
+        );
+      }
       parts.push(data);
     }
     return Buffer.concat(parts);
