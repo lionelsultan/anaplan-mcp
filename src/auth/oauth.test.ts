@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { OAuthProvider, DeviceAuthorizationRequiredError } from "./oauth.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DeviceAuthorizationRequiredError, OAuthProvider } from "./oauth.js";
 
 describe("OAuthProvider", () => {
   beforeEach(() => {
@@ -7,7 +7,7 @@ describe("OAuthProvider", () => {
   });
 
   it("throws if clientId is missing", () => {
-    expect(() => new OAuthProvider("", "secret")).toThrow("client ID");
+    expect(() => new OAuthProvider("")).toThrow("client ID");
   });
 
   describe("device grant", () => {
@@ -120,11 +120,8 @@ describe("OAuthProvider", () => {
         } as Response);
 
       const provider = new OAuthProvider("client-id");
-      // Call 1: requests device code → throws
       await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
-      // Call 2: polls → slow_down → throws (and doubles intervalMs)
       await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
-      // Call 3: polls → token → returns
       const token = await provider.authenticate();
       expect(token.tokenValue).toBe("tok");
       expect(fetchSpy).toHaveBeenCalledTimes(3);
@@ -202,9 +199,8 @@ describe("OAuthProvider", () => {
         } as Response);
 
       const provider = new OAuthProvider("client-id");
-      // Call 1: stores pending with dcode1 → throws
       await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
-      // Call 2: polls → access_denied → clears pending → requests fresh code → throws with new URL
+
       let caught: DeviceAuthorizationRequiredError | undefined;
       try {
         await provider.authenticate();
@@ -214,15 +210,14 @@ describe("OAuthProvider", () => {
       expect(caught).toBeInstanceOf(DeviceAuthorizationRequiredError);
       expect(caught!.userCode).toBe("CODE2");
       expect(fetchSpy).toHaveBeenCalledTimes(3);
-      // Verify 3rd fetch was a device code request, not a token poll
       const thirdCallUrl = fetchSpy.mock.calls[2][0] as string;
       expect(thirdCallUrl).toContain("device/code");
     });
 
     it("requests fresh code when pending state has expired", async () => {
       const nowSpy = vi.spyOn(Date, "now")
-        .mockReturnValueOnce(1000)          // first authenticate() — sets expiresAt = 1000 + 600_000
-        .mockReturnValueOnce(1000 + 601_000); // second authenticate() expiry check — past expiresAt
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1000 + 601_000);
 
       const fetchSpy = vi.spyOn(globalThis, "fetch")
         .mockResolvedValueOnce({
@@ -261,58 +256,8 @@ describe("OAuthProvider", () => {
     });
   });
 
-  describe("initialRefreshToken", () => {
-    it("bypasses device grant and exchanges refresh token on first authenticate()", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          access_token: "refreshed-tok",
-          token_type: "Bearer",
-          expires_in: 2100,
-          refresh_token: "new-refresh",
-        }),
-      } as Response);
-
-      const provider = new OAuthProvider("client-id", undefined, undefined, "my-refresh-token");
-      const token = await provider.authenticate();
-
-      expect(token.tokenValue).toBe("refreshed-tok");
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.grant_type).toBe("refresh_token");
-      expect(body.refresh_token).toBe("my-refresh-token");
-    });
-
-    it("clears initialRefreshToken after first use and falls through to device grant", async () => {
-      vi.spyOn(globalThis, "fetch")
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            access_token: "tok",
-            token_type: "Bearer",
-            expires_in: 2100,
-            refresh_token: "new-refresh",
-          }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            device_code: "dcode",
-            user_code: "UCODE",
-            verification_uri: "https://auth.anaplan.com/device",
-            expires_in: 600,
-            interval: 5,
-          }),
-        } as Response);
-
-      const provider = new OAuthProvider("client-id", undefined, undefined, "my-refresh-token");
-      await provider.authenticate(); // consumes initialRefreshToken
-      // Second call: initialRefreshToken is null → falls through to device grant
-      await expect(provider.authenticate()).rejects.toBeInstanceOf(DeviceAuthorizationRequiredError);
-    });
-  });
-
   it("refreshes with refresh_token grant", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: async () => ({
         access_token: "new-oauth-token",
@@ -322,99 +267,14 @@ describe("OAuthProvider", () => {
       }),
     } as Response);
 
-    const provider = new OAuthProvider("client-id", "client-secret");
+    const provider = new OAuthProvider("client-id");
     const token = await provider.refresh("old-refresh");
 
     expect(token.tokenValue).toBe("new-oauth-token");
-  });
-
-  it("device grant refresh excludes client_secret", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        access_token: "tok",
-        token_type: "Bearer",
-        expires_in: 2100,
-        refresh_token: "ref",
-      }),
-    } as Response);
-
-    const provider = new OAuthProvider("client-id", "client-secret");
-    await provider.refresh("old-refresh");
-
     const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-    expect(body.client_secret).toBeUndefined();
     expect(body.client_id).toBe("client-id");
-  });
-
-  describe("authorization code grant", () => {
-    it("exchanges code for token", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          access_token: "auth-code-token",
-          token_type: "Bearer",
-          expires_in: 2100,
-          refresh_token: "auth-code-refresh",
-        }),
-      } as Response);
-
-      const provider = new OAuthProvider("client-id", "client-secret", {
-        authorizationCode: "my-auth-code",
-        redirectUri: "https://example.com/callback",
-      });
-      const token = await provider.authenticate();
-
-      expect(token.tokenValue).toBe("auth-code-token");
-      expect(token.refreshTokenId).toBe("auth-code-refresh");
-
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.grant_type).toBe("authorization_code");
-      expect(body.code).toBe("my-auth-code");
-      expect(body.client_id).toBe("client-id");
-      expect(body.client_secret).toBe("client-secret");
-      expect(body.redirect_uri).toBe("https://example.com/callback");
-    });
-
-    it("refresh includes client_secret", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          access_token: "tok",
-          token_type: "Bearer",
-          expires_in: 2100,
-          refresh_token: "ref",
-        }),
-      } as Response);
-
-      const provider = new OAuthProvider("client-id", "client-secret", {
-        authorizationCode: "my-auth-code",
-        redirectUri: "https://example.com/callback",
-      });
-      await provider.refresh("old-refresh");
-
-      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string);
-      expect(body.client_secret).toBe("client-secret");
-      expect(body.client_id).toBe("client-id");
-    });
-
-    it("throws if authenticate is called twice (code is single-use)", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          access_token: "tok",
-          token_type: "Bearer",
-          expires_in: 2100,
-          refresh_token: "ref",
-        }),
-      } as Response);
-
-      const provider = new OAuthProvider("client-id", "client-secret", {
-        authorizationCode: "my-auth-code",
-        redirectUri: "https://example.com/callback",
-      });
-      await provider.authenticate();
-      await expect(provider.authenticate()).rejects.toThrow("already been used");
-    });
+    expect(body.grant_type).toBe("refresh_token");
+    expect(body.refresh_token).toBe("old-refresh");
+    expect(body.client_secret).toBeUndefined();
   });
 });

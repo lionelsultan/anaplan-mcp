@@ -5,8 +5,7 @@
       "command": "node",
       "args": ["dist/index.js"],
       "env": {
-        "ANAPLAN_USERNAME": "user@company.com",
-        "ANAPLAN_PASSWORD": "your-password"
+        "ANAPLAN_CLIENT_ID": "your-client-id"
       }
     }
   }

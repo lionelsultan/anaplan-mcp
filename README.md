@@ -7,7 +7,7 @@
 # Anaplan MCP
 ### Unofficial MCP server for Anaplan
 
-A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 70 structured tools, using your existing Anaplan credentials and permissions.
+A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects AI assistants to Anaplan's Integration API v2. Gives LLMs like Claude direct access to browse workspaces, manage data, run imports/exports, and administer models through 70 structured tools, using your Anaplan OAuth identity and permissions.
 
 Built in TypeScript. Supports both stdio (local) and Streamable HTTP (remote) transports. Works with Claude Desktop, Claude Code, claude.ai, and any MCP-compatible client. Includes a built-in orchestration guide that teaches the AI assistant the correct tool sequences for every workflow.
 
@@ -21,7 +21,7 @@ This server wraps the API in 70 structured tools that AI assistants like Claude 
 
 **For model builders and consultants:** Analyze model structure, trace formula dependencies, review line item configurations, and identify performance issues - all through conversation instead of clicking through hundreds of modules manually.
 
-**For IT and platform teams:** Standard API access using your existing authentication and permissions. No new credentials, no elevated access. Open source for auditability. Anaplan data is processed by your AI assistant - locally or through your provider's environment depending on your setup.
+**For IT and platform teams:** Standard API access using Anaplan OAuth and your existing permissions. No new privileges, no elevated access. Open source for auditability. Anaplan data is processed by your AI assistant - locally or through your provider's environment depending on your setup.
 
 ## Common Use Cases
 
@@ -73,7 +73,7 @@ For model building, use Anaplan's UI or Agent Studio.
 ## Prerequisites
 
 - **Node.js 18+** - [download here](https://nodejs.org/)
-- **An Anaplan account** with API access (any auth method - basic, certificate, or OAuth)
+- **An Anaplan OAuth client ID** that your users can authorize against
 - **An MCP-compatible client** - Claude Desktop (recommended), Claude Code, or any other MCP client
 
 ## Setup
@@ -104,7 +104,7 @@ If the file doesn't exist yet, create it with `{}` as the contents.
 
 Replace `<path>` with the absolute path to your cloned repo (e.g. `/Users/you/anaplan-mcp` on macOS/Linux or `C:/Users/you/anaplan-mcp` on Windows - always use forward slashes).
 
-**Basic auth:**
+**OAuth device grant:**
 
 ```json
 {
@@ -113,44 +113,14 @@ Replace `<path>` with the absolute path to your cloned repo (e.g. `/Users/you/an
       "command": "node",
       "args": ["<path>/dist/index.js"],
       "env": {
-        "ANAPLAN_USERNAME": "user@company.com",
-        "ANAPLAN_PASSWORD": "your-password"
+        "ANAPLAN_CLIENT_ID": "your-client-id"
       }
     }
   }
 }
 ```
 
-For other auth methods, use the same structure with a different `env` block:
-
-**Certificate auth:**
-```json
-"env": {
-  "ANAPLAN_CERTIFICATE_PATH": "/path/to/cert.pem",
-  "ANAPLAN_PRIVATE_KEY_PATH": "/path/to/key.pem"
-}
-```
-`ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` can be added optionally; defaults to `v2`. Set `v1` only for legacy tenants.
-
-**OAuth2 (device grant):**
-
-```json
-"env": {
-  "ANAPLAN_CLIENT_ID": "your-client-id"
-}
-```
-
-On first use, Claude shows a link in chat — click it, approve in Anaplan, then retry your request. OAuth tokens are kept in memory only. If the MCP process restarts, or an OAuth session is idle for more than 60 minutes, you'll be prompted to authorize again unless you provide `ANAPLAN_REFRESH_TOKEN` yourself.
-
-**OAuth2 (authorization code) - non-interactive:**
-```json
-"env": {
-  "ANAPLAN_CLIENT_ID": "your-client-id",
-  "ANAPLAN_CLIENT_SECRET": "your-client-secret",
-  "ANAPLAN_OAUTH_AUTHORIZATION_CODE": "code-from-redirect",
-  "ANAPLAN_OAUTH_REDIRECT_URI": "https://your-app.com/callback"
-}
-```
+On first use, Claude shows a link in chat. Open it, approve in Anaplan, then retry your request. OAuth tokens are kept in memory only. If the MCP process restarts, or an OAuth session is idle for more than 60 minutes, you'll be prompted to authorize again.
 
 If your config file already has content, add `mcpServers` inside the existing top-level object - don't create a second `{}` block.
 
@@ -162,7 +132,7 @@ Quit Claude Desktop completely (right-click the system tray icon and quit - don'
 
 - **"Unexpected non-whitespace" error** - Your JSON is invalid. Make sure there's only one `{}` object in the file and no trailing commas. Paste your config into [jsonlint.com](https://jsonlint.com/) to check.
 - **Server disconnected** - Run `node C:/path/to/anaplan-mcp/dist/index.js` in a terminal to see the actual error. Common causes: wrong path in `args`, missing `npm run build`, or Node.js not installed.
-- **401 Unauthorized when using tools** - Your Anaplan credentials are wrong, or your account uses SSO (in which case basic auth won't work - use certificate or OAuth2 instead).
+- **Authorization prompt keeps returning** - Make sure `ANAPLAN_CLIENT_ID` is correct, complete the Anaplan approval flow in the browser, then retry the same tool call.
 
 ### Connect to Claude Code
 
@@ -196,14 +166,9 @@ See the **[Remote Deployment Guide](docs/guides/deploying-remote.md)** for full 
 
 All configuration is done through environment variables. There are no config files, CLI flags, or settings menus.
 
-| Method | Env Vars | Description |
-|--------|----------|-------------|
-| Certificate | `ANAPLAN_CERTIFICATE_PATH`, `ANAPLAN_PRIVATE_KEY_PATH`, `ANAPLAN_CERTIFICATE_ENCODED_DATA_FORMAT` (optional) | Highest priority. PEM certificate + private key, authenticates via CACertificate flow. Data format defaults to `v2` |
-| OAuth2 (device grant) | `ANAPLAN_CLIENT_ID` | Device authorization flow. Claude shows you the URL and code in chat; authorize in browser then retry. Tokens stay in memory only, so restart or >60 minutes of idle time requires another device login unless you set `ANAPLAN_REFRESH_TOKEN` manually |
-| OAuth2 (authorization code) | `ANAPLAN_CLIENT_ID`, `ANAPLAN_CLIENT_SECRET`, `ANAPLAN_OAUTH_AUTHORIZATION_CODE`, `ANAPLAN_OAUTH_REDIRECT_URI` | Non-interactive. Requires all four env vars. Code is single-use |
-| Basic | `ANAPLAN_USERNAME`, `ANAPLAN_PASSWORD` | Lowest priority. Email + password, sends base64 credentials to auth endpoint |
-
-You only need one set of credentials. If multiple are configured, the server picks the highest-priority method automatically.
+| Variable | Description |
+|----------|-------------|
+| `ANAPLAN_CLIENT_ID` | Required. Starts the Anaplan OAuth device-authorization flow. Claude shows the URL/code in chat; authorize in the browser, then retry. Tokens stay in memory only, so restart or more than 60 minutes of idle time requires another device login |
 
 ### HTTP transport security
 
@@ -243,7 +208,7 @@ Claude Desktop prompts you before each tool call. You'll see the tool name and p
 
 - **Start with read-only.** Ask Claude to explore your workspaces and models before running any write operations. Get comfortable with the tool output first.
 - **Test in a dev workspace.** If you have a non-production Anaplan workspace, use that while getting familiar with the tools.
-- **Use least-privilege credentials.** If your Anaplan admin can create a service account with limited workspace access, use that instead of your personal admin account.
+- **Use least-privilege access.** The MCP server can only do what the authorized Anaplan user can do, so prefer a constrained OAuth identity where possible.
 - **Review before confirming write operations.** When Claude proposes to run an import, write cells, or delete items, read the parameters carefully before approving.
 - **Exports and imports are asynchronous.** The server polls until they complete (up to 5 minutes). You can cancel a running task with `cancel_task` if needed.
 

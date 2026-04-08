@@ -29,11 +29,8 @@ flowchart LR
         F[Structured result formatting]
     end
 
-    subgraph AUTH["Anaplan Auth Paths"]
-        A1[Certificate auth]
-        A2[OAuth device grant]
-        A3[OAuth authorization code]
-        A4[Basic auth]
+    subgraph AUTH["Anaplan Auth Path"]
+        A1[OAuth device grant]
     end
 
     subgraph ANAPLAN["Anaplan Platform"]
@@ -50,14 +47,7 @@ flowchart LR
     TL --> AH
 
     AH --> A1
-    AH --> A2
-    AH --> A3
-    AH --> A4
-
     A1 --> API
-    A2 --> API
-    A3 --> API
-    A4 --> API
 
     TL --> API
     API --> I
@@ -91,7 +81,7 @@ sequenceDiagram
     Tool->>Tool: Validate inputs
     Tool->>Auth: Ensure valid token exists
     Note over Client,Auth: Remote HTTP sessions use a fresh AuthManager and per-session Anaplan OAuth
-    Auth->>Provider: Use configured auth method for this session
+    Auth->>Provider: Start or refresh the device-grant session
     Provider-->>Auth: Access token
     Auth-->>Tool: Valid token
     Tool->>API: Execute endpoint call
@@ -113,7 +103,7 @@ How the server maps user intent to Anaplan permissions without adding any new pr
 flowchart TD
     U[User request in plain English] --> C[AI assistant selects tool]
     C --> V[Validate tool arguments]
-    V --> A[Authenticate using configured credentials<br/>or per-session Anaplan OAuth]
+    V --> A[Authenticate via Anaplan OAuth device grant]
     A --> P[Apply existing Anaplan permissions for that identity]
     P --> D{Requested operation type}
 
@@ -132,4 +122,4 @@ flowchart TD
     N[No new privileges created by MCP] --> P
 ```
 
-The server never creates new access rights. Every operation is bound by the permissions already attached to the Anaplan identity used for that session: the locally configured credentials in stdio mode, or the remote user's session-scoped OAuth identity in HTTP mode.
+The server never creates new access rights. Every operation is bound by the permissions already attached to the Anaplan OAuth identity used for that session: the local stdio user's device-grant session, or the remote user's session-scoped OAuth identity in HTTP mode.
