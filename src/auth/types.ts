@@ -3,10 +3,18 @@ export interface TokenInfo {
   tokenValue: string;
   expiresAt: number;
   refreshTokenId: string;
+  refreshToken?: string;
+}
+
+export interface AuthResponse {
+  meta: { validationUrl: string };
+  status: string;
+  statusMessage: string;
+  tokenInfo: TokenInfo;
 }
 
 // Auth provider contract - schema v2.1-ls
 export interface AuthProvider {
   authenticate(): Promise<TokenInfo>;
-  refresh(refreshToken: string): Promise<TokenInfo>;
+  refresh(tokenValue: string): Promise<TokenInfo>;
 }
